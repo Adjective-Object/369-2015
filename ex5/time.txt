@@ -1,0 +1,49 @@
+$ time ./dolist
+Thread 3 inserted 10000 values
+Thread 7 inserted 10000 values
+Thread 1 inserted 10000 values
+Thread 0 inserted 10000 values
+Thread 4 inserted 10000 values
+Thread 2 inserted 10000 values
+Thread 5 inserted 10000 values
+Thread 6 inserted 10000 values
+Total inserts = 80000
+Final length = 79996
+
+real	0m22.817s
+user	1m22.213s
+sys	0m0.084s
+
+
+$ time ./dosync
+Thread 5 inserted 10000 values
+Thread 3 inserted 10000 values
+Thread 2 inserted 10000 values
+Thread 0 inserted 10000 values
+Thread 1 inserted 10000 values
+Thread 6 inserted 10000 values
+Thread 7 inserted 10000 values
+Thread 4 inserted 10000 values
+Total inserts = 80000
+Final length = 80000
+
+real	1m19.963s
+user	1m20.290s
+sys	0m0.543s
+
+
+$ time ./handoff 
+Thread 7 inserted 10000 values
+Thread 1 inserted 10000 values
+Thread 6 inserted 10000 values
+Thread 0 inserted 10000 values
+Thread 3 inserted 10000 values
+Thread 5 inserted 10000 values
+Thread 4 inserted 10000 values
+Thread 2 inserted 10000 values
+Total inserts = 80000
+Final length = 80000
+
+real	0m46.206s
+user	2m17.176s
+sys	0m7.593s
