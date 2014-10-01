@@ -7,4 +7,4 @@ testmalloc : mymemory.o test_malloc.o
 	gcc -c -o $@ $< -lpthread
 
 clean:
-	rm *.o
+	rm *.o testmalloc
