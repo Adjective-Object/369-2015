@@ -5,3 +5,6 @@ testmalloc : mymemory.o test_malloc.o
 
 %.o: %.c
 	gcc -c -o $@ $< -lpthread
+
+clean:
+	rm *.o
