@@ -19,35 +19,34 @@ typedef struct memhead {
     void * next;
     unsigned int size;
     unsigned int magic;
-    pthread_mutex_t lock;
 } memhead;
 
 // converts external size of block to internal size
-unsigned int size_etoi(unsigned int size){
+static unsigned int size_etoi(unsigned int size){
     return size - BLOCK_OVERHEAD;
 }
 // converts internal size of block to external size 
-unsigned int size_itoe(unsigned int internalsize){
+static unsigned int size_itoe(unsigned int internalsize){
     return internalsize + BLOCK_OVERHEAD;
 }
 
 //points to the integer at the end of the node (the size)
-void *node_tail(memhead *node){
+static void *node_tail(memhead *node){
     return (void *)(node) + (node->size) + BLOCK_OVERHEAD;
 }
 
 //points to the integer at the end of the node)
-void *node_after(memhead *node){
+static void *node_after(memhead *node){
     return (void *)(node) + (node->size) + BLOCK_OVERHEAD;
 }
 
 //goes from the internal pointer to the external pointer
-void *ptr_etoi(memhead *node){
+static void *ptr_etoi(memhead *node){
     return (void *)(node) + sizeof(memhead);
 }
 
 //goes fro the external pointer to the internal pointer
-void *ptr_itoe(memhead *internal){
+static void *ptr_itoe(memhead *internal){
     return (void *)(internal) - sizeof(memhead);
 }
 
@@ -62,11 +61,10 @@ void initmemblock(memhead* head, unsigned int isize){
     */
     head->size = isize;
     head->magic = MAGIC;
-    pthread_mutex_init(&(head->lock), NULL);
     *((int *)tailpointer) = esize;
 }
 
 // checks if internal node is valid
-bool valid_node(memhead *ptr){
+static bool valid_node(memhead *ptr){
     return ptr->magic == MAGIC;
 }

@@ -9,7 +9,7 @@
 #define BLOCK_MININTERNAL 512
 #define BLOCK_MINSIZE (BLOCK_MININTERNAL + BLOCK_OVERHEAD)
 
-pthread_mutex_t biglock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t biglock = PTHREAD_MUTEX_INITIALIZER;
 
 // pointer to the head of the linked list of nodesmemhead *free_head = NULL;
 memhead *free_head;

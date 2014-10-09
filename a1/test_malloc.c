@@ -188,8 +188,8 @@ int main(int argc, char *argv[]) {
         }
     }
     gettimeofday(&end, NULL);
-    diff = 1000000 *(end.tv_sec - start.tv_sec) 
-            + (end.tv_usec - start.tv_usec);
+    diff = (1000000 *(end.tv_sec - start.tv_sec) 
+            + (end.tv_usec - start.tv_usec))/1000000.0;
     fprintf(stdout, "Time: %f\n", diff);
 	fprintf(stdout, "Max heap extent: %ld\n", max_heap - start_heap);
     
