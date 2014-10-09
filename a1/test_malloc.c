@@ -14,7 +14,7 @@
 /* Credit: 
  * http://stackoverflow.com/questions/1644868/c-define-macro-for-debug-printing 
  */
-#define DEBUG 1
+#define DEBUG 0
 #define debug_print(fmt, ...) \
             do { if (DEBUG) fprintf(stdout, fmt, __VA_ARGS__); } while (0)
 
@@ -189,8 +189,9 @@ int main(int argc, char *argv[]) {
     }
     gettimeofday(&end, NULL);
     diff = (1000000 *(end.tv_sec - start.tv_sec) 
-            + (end.tv_usec - start.tv_usec))/1000000.0;
+            + (end.tv_usec - start.tv_usec));
     fprintf(stdout, "Time: %f\n", diff);
+    fprintf(stdout, "(Seconds): %f\n", diff/1000000.0);
 	fprintf(stdout, "Max heap extent: %ld\n", max_heap - start_heap);
     
     return 0;

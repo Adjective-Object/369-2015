@@ -16,9 +16,11 @@
 // size
 
 typedef struct memhead {
-    void * next;
+    void *next;
+    void *prev;
     unsigned int size;
-    unsigned int magic;
+    unsigned short magic;
+    unsigned short isfree;
 } memhead;
 
 // converts external size of block to internal size
@@ -38,6 +40,12 @@ static void *node_tail(memhead *node){
 //points to the integer at the end of the node)
 static void *node_after(memhead *node){
     return (void *)(node) + (node->size) + BLOCK_OVERHEAD;
+}
+
+//points to the integer at the end of the node)
+static void *node_before(memhead *node){
+    int *tail = ((int *)(node)) - 1;
+    return ((void *)(tail)) - (*tail);
 }
 
 //goes from the internal pointer to the external pointer
@@ -61,7 +69,27 @@ void initmemblock(memhead* head, unsigned int isize){
     */
     head->size = isize;
     head->magic = MAGIC;
+    head->isfree = 1;
     *((int *)tailpointer) = esize;
+}
+
+void debug_printmemlist(head) {
+    memhead *node = head;
+    printf("\n");
+    if(node == NULL){
+        printf("\tlist empty\n\n");
+        return;
+    }
+    do {
+        printf("\t(start %p, end %p, size %d, next %p)\n",
+            node,
+            node_after(node),
+            node->size,
+            node->next);
+        
+        node = node->next;
+    } while(node != head);
+    printf("\n");
 }
 
 // checks if internal node is valid

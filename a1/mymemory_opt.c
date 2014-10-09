@@ -37,25 +37,6 @@ void initusermalloc() {
     //printf("\tinitialization complete\n");
 }
 
-void debug_printmemlist() {
-    memhead *node = free_head;
-    printf("\n");
-    if(node == NULL){
-        printf("\tlist empty\n\n");
-        return;
-    }
-    do {
-        printf("\t(start %p, end %p, size %d, next %p)",
-            node,
-            node_after(node),
-            node->size,
-            node->next);
-        
-        node = node->next;
-    } while(node != free_head);
-    printf("\n");
-}
-
 /* drops <size> bytes from the beginning of block described
 by node and returns a pointer to the new block.
 i.e. 
@@ -123,23 +104,26 @@ memhead *findblockfitting(unsigned int isize){
         scan = free_head->next;
         prev = free_head;
     } else {
-        //printf("list is empty, making a new block\n");
+        printf("list is empty, making a new block\n");
         return makenewblock(isize);
     }
 
-    // //printf("\thead of list: %p\n", scan);
+    printf("\thead of list: %p\n", scan);
 
     while( scan!=free_head &&  
             scan->size < isize){
+        printf("%p\n", scan);
         prev = scan;
         scan = scan->next;
     }
+
+    printf("prev: %p, scan %p\n", prev, scan);
 
     // if at end of list and nothing is big 
     // enough, sbrk something of appropriate size
     if(prev == scan){
         // list is a single cyclical element
-        //printf("list is a single element.\n");
+        printf("list is a single element.\n");
         if(scan->size < isize){
             // make a new one if is not right size
             //printf("making new block\n");
@@ -154,12 +138,12 @@ memhead *findblockfitting(unsigned int isize){
     }
     else if(scan == free_head){
         // no nodes are large enough
-        //printf("no nodes are large enough\n");
+        printf("no nodes are large enough\n");
         return makenewblock(isize);
     }
     else {
         // there is an existing node large enough
-        //printf("handling node\n");
+        printf("handling node\n");
         return handleexistingblock(prev, scan, isize);
     }
 }
@@ -180,7 +164,7 @@ void *mymalloc(unsigned int size) {
     #endif
 
     if (size == 0){
-        //printf("SHIT SON SIZE 0\n");
+        //printf("error on malloc size 0, returning null\n");
         return NULL;
     }
 
@@ -199,15 +183,60 @@ void *mymalloc(unsigned int size) {
         needsinit = 0;
     }
 
-
     memhead *mptr = findblockfitting(size);
+    mptr->isfree = 0;
     //printf("\tfound block (%p) fitting: %d\n", mptr, size);
 
     //printf("\tusermalloc %d complete\n\n", size);
-    //debug_printmemlist();
+    //debug_printmemlist(free_head);
     pthread_mutex_unlock(&biglock);
 
     return ptr_etoi(mptr);    
+}
+
+unsigned int backward_coalesce(memhead* in) {
+    //int *prevsize = (int *) in - 1;
+    memhead *prev = node_before(in);
+    if((void *)prev >= sbrk_start && prev->isfree){
+        //printf("coalesce backward (prev: %p) <- (in: %p)\n", prev, in);
+        
+        //printf("coalesce backward\n");
+
+        //debug_printmemlist(free_head);
+        prev->size = prev->size + size_itoe(in->size);
+        int *tail = node_tail(prev);
+        *tail = size_itoe(prev->size);
+
+        //debug_printmemlist(free_head);
+        return 1;
+    }
+    return 0;
+}
+
+unsigned int forward_coalesce(memhead* in) {
+    memhead *next = node_after(in);
+    if ((void *)next < sbrk_end && next->isfree){
+        printf("coalesce forward\n");
+        debug_printmemlist(free_head);
+        in->size = in->size + size_itoe(in->size);
+        memhead *prev = (next->prev);
+        prev->next = in;
+        debug_printmemlist(free_head);
+        return 1;
+    }
+
+    return 0;
+}
+
+unsigned int insert_node(memhead *ext){
+    if(free_head == NULL) {
+        free_head = ext;
+        ext->next = ext;
+    } else {
+        memhead *nxt = free_head->next;
+        ext->next = nxt;
+        free_head->next = ext;
+    }
 }
 
 /* myfree: unallocates memory that has been allocated with mymalloc.
@@ -221,35 +250,34 @@ unsigned int myfree(void *ptr) {
     free(ptr);
     return 0;
     #endif
+
     pthread_mutex_lock(&biglock);
     //printf("\nmyfree %p (%p)\n", ptr, ptr_itoe(ptr));
-
     memhead *ext = ptr_itoe(ptr);
-    
+
     //check if in valid range
-    if ((sbrk_start > ptr) || (sbrk_end < ptr)){
+    if ((sbrk_start > ptr) || (sbrk_end < ptr)) {
+        pthread_mutex_unlock(&biglock);
         return 1;
     }
 
     //check magic number
-    if (!valid_node(ext)){
-        //printf(" MAGIC NOT MAGIC!\n");
+    if (!valid_node(ext)) {
+        pthread_mutex_unlock(&biglock);
         return 1;
     }
 
-    //printf("\n");
-
-    if(free_head == NULL) {
-        free_head = ext;
-        ext->next = ext;
-    } else {
-        memhead *nxt = free_head->next;
-
-        ext->next = nxt;
-        free_head->next = ext;
+    ext->isfree = 1;
+    
+    //coalesce
+    if(backward_coalesce(ext)){ //|| forward_coalesce(ext)
+        pthread_mutex_unlock(&biglock);
+        return 0;
     }
 
-    //debug_printmemlist();
+    insert_node(ext);
+
+    //debug_printmemlist(free_head);
     pthread_mutex_unlock(&biglock);
 
     return 0;
