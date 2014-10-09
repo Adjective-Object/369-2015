@@ -63,6 +63,12 @@ void *dowork(void *threadid) {
         switch(tr.ops[i].type) {
             case MALLOC:
                 debug_print("thread%li: malloc block %d (size %d)\n", id, tr.ops[i].index, tr.ops[i].size);
+                if(tr.ops[i].size == 0){
+                    fprintf(stderr, 
+                        "Error: tried to malloc 0 for block %d (skipping)\n",
+                        tr.ops[i].index);
+                    break;
+                }
                 tr.blocks[tr.ops[i].index] = mymalloc(tr.ops[i].size);
                 if (!tr.blocks[tr.ops[i].index]) {
                     fprintf(stderr, "Error: Thread %li failed on allocation %i.\n", 
@@ -73,6 +79,12 @@ void *dowork(void *threadid) {
 
             case FREE:
                 debug_print("thread%li: free block %d\n", id, tr.ops[i].index);
+                if(tr.blocks[tr.ops[i].index] == NULL){
+                    fprintf(stderr, 
+                        "Error: tried to free (nil) for block %d (skipping)\n",
+                        tr.ops[i].index);
+                    break;
+                }
                 ptr = tr.blocks[tr.ops[i].index];
                 if(myfree(ptr)) {
                     fprintf(stderr, "Error: Thread%li failed on free (block %d).\n", 
