@@ -194,6 +194,8 @@ void *mymalloc(unsigned int size) {
 
     memhead *mptr = findblockfitting(size);
     mptr->isfree = 0;
+    
+    //printf("%p\t(%d)\tfor size %d\n", mptr, mptr->size, size);
     //printf("\tfound block (%p) fitting: %d\n", mptr, size);
 
     //printf("\tusermalloc %d complete\n\n", size);
@@ -205,7 +207,7 @@ void *mymalloc(unsigned int size) {
     return ptr_etoi(mptr);    
 }
 
-unsigned int backward_coalesce(memhead* in) {
+unsigned int check_backward_coalesce(memhead* in) {
 
     memhead *prev = node_before(in);
     if((void *)prev >= sbrk_start && prev->isfree){
@@ -228,40 +230,41 @@ unsigned int backward_coalesce(memhead* in) {
     return 0;
 }
 
-unsigned int forward_coalesce(memhead* in) {
+unsigned int forward_coalesce(memhead *in, memhead *after){
+    //printf("coalesce forward in %p, after %p\n", in, after);
+
+    //debug_printmemlist(free_head);
+
+    memhead *nxt = after->next;
+    in->next = nxt;
+    nxt->prev = in;
+
+    in->size = in->size + size_itoe(after->size);
+
+    memhead *oldprev = (after->prev);
+
+    oldprev->next = in;
+    in->prev = oldprev;
+
+    int *tail = node_tail(in);
+    *tail = size_itoe(in->size);
+
+    if(free_head == after){
+        // printf("reassigning free_head\n");
+        free_head = in;
+    }
+
+    //debug_printlocalmemlist(in,10);
+    // printf("coalesce done\n");
+
+    return 1;
+}
+
+unsigned int check_forward_coalesce(memhead* in) {
     memhead *after = node_after(in);
-    if ((void *)after < sbrk_end && after->isfree){
+    if (0 && (void *)after < sbrk_end && after->isfree){
 
-        /*
-        printf("coalesce forward\n");
-        printf("(in %p) (after %p)\n",in,after);
-        printf("(after.size %d) (after.prev %p) | sbrk_end %p\n",
-             after->size, after->prev, sbrk_end);
-        */
-        //debug_printlocalmemlist(after,10);
-        
-        memhead *nxt = after->next;
-        in->next = nxt;
-        nxt->prev = in;
-        
-        in->size = in->size + size_itoe(after->size);
-
-        memhead *oldprev = (after->prev);
-
-        oldprev->next = in;
-        in->prev = oldprev;
-
-        int *tail = node_tail(after);
-        *tail = size_itoe(in->size);
-
-        if(free_head == after){
-            printf("reassigning free_head\n");
-            free_head = in;
-        }
-
-        //debug_printlocalmemlist(in,10);
-
-        return 1;
+        forward_coalesce(in, after);
     }
 
     return 0;
@@ -317,7 +320,7 @@ unsigned int myfree(void *ptr) {
     
     //coalesce
     //printf("check coalesce\n");
-    if(backward_coalesce(ext) ) {
+    if(check_backward_coalesce(ext) || check_forward_coalesce(ext)) {
         //printf("coalesce done\n");
 
         //printf("free done\n");
