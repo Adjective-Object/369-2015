@@ -1,0 +1,36 @@
+#CSC369 A1: Malloc 
+###Simple implementation, Maxwell Huang-Hobbs (chuangk)
+
+The simple implementation is done with a singley linked list, pointed to
+by `free_head`. The list is not kept in a sorted order.
+
+###MyMalloc
+
+In malloc, the list is traversed starting at the head until either a large 
+enough node is found or the the traversal steps off the end of the list.
+
+If a large enough node is found, it will be either split or just returned 
+depending on how much remaining size there wuld be after a split.
+
+Otherwise, a new node is sbrk'd, initialized and returned. 
+
+this gives a linear time mymalloc()
+
+###Node Initialization
+Nodes are stuctured as follows
+```
+header (next, internal_size, magic, prev, isfree)
+.. body of memory block
+footer (external_size)
+```
+
+In the simple implementation, prev, isfree, and the footer are not used or maintained, but are left in beccause they share code with mymalloc_opt (malloc_structs.h)
+
+where the internal size is the size of the body,
+and the external size is the size of the body + the header + the footer
+
+###Free
+
+when an adress is freed, the input pointer is decremented to get the address
+of the memory block. If the block's magic is equal to The block is then inserted at the head of the `free_head`
+for a constant time free.

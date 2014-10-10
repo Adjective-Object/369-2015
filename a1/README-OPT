@@ -1,0 +1,50 @@
+#CSC369 A1: Malloc 
+###Optimized implementation, Maxwell Huang-Hobbs (chuangk)
+
+The soptimized implementation is done with a cyclical doubley linked list, with some member pointed to by `free_head`. The list is not kept in a sorted order.
+
+###Malloc
+
+In malloc, the list is traversed starting at `free_head` until either a large 
+enough node is found or the the traversal hits `free_head` again.
+
+If no nodes are large enough, a new node is sbrk'd, initialized and returned. 
+
+Otherwise, if a large enough node is found it will be either split or just returned depending on how much remaining size there wuld be after a split. `free_head` is then set to the node following the returned node, such that the next  traversal will start where this one ended. This evens out how often nodes in the list are traversed, and as such, will reduce fragmentation of the list due to splitting.
+
+this gives a linear time mymalloc(), with a better average case time than in the unoptimized version.
+
+###Node Initialization
+Nodes are stuctured as follows
+```
+header (next, previous, internal_size, isfree, magic)
+.. body of memory block
+footer (external_size)
+```
+
+where the internal size is the size of the body,
+and the external size is the size of the body + the header + the footer
+
+The footer is just the external size of the block, used for coalescing in
+mymalloc_opt.
+
+###Free
+
+when an adress is freed, the input pointer is decremented to get the address
+of the memory block. If the block can be coalesced into an existing free block,
+it is (coalescing algorithm described below). Otherwise, the block is just inserted as the successor of the node pointed to by `free_head`
+
+###Coalescing
+
+Node coalescing is done based on the locations in memory.
+
+first, myfree checks for coalescing by stepping back by the size indicated in the footer of the preceding node. If that node is free, it coalesces into that node
+
+if that fails, myfree checks the following node, and coalesces with that node by
+replacing it in the linked list and adjusting the size appropriately
+
+###Problems
+
+Forward coalesce causes segfaults. This is probably due to improper maintenence of the prev pointer. As such, I've disabled forward coalescing in the submitted version, so the overall runtime isn't as good as it could be.
+
+Moreover, the coalescing algorithm does not check for coalescing in both directions (because the forward coalescing algorithm is broken)
