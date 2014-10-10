@@ -11,6 +11,7 @@
 #define WORDSIZE (__WORDSIZE/8)
 #define BLOCK_MININTERNAL 512
 #define BLOCK_MINSIZE (BLOCK_MININTERNAL + BLOCK_OVERHEAD)
+#define SYSTEM_MALLOC 0
 
 static pthread_mutex_t biglock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -20,16 +21,11 @@ void *sbrk_start = NULL;    // first address of sbrked memory
 void *sbrk_end = NULL;      // last address of sbrked memory
 int needsinit = 1;
 
-//inits the user malloc
+//inits values needed for mymalloc
 void initusermalloc() {
-    //printf("\t\ninitializing user malloc\n");
-
-    sbrk_start = (void *)sbrk(SBRK_STEP+sizeof(unsigned int)); 
+    sbrk_start = (void *)sbrk(SBRK_STEP); 
     free_head = (memhead *)sbrk_start;
     sbrk_end = (void *)(sbrk(0));
-
-    //printf("\tsbrk starts at %p\n", sbrk_start);
-    //printf("\tsbrk ends at %p\n", sbrk_end);
 
     unsigned int diff = (intptr_t)(sbrk_end) - (intptr_t)(free_head);
 
@@ -38,7 +34,6 @@ void initusermalloc() {
         size_etoi(diff));
     free_head->next = free_head;
     free_head->prev = free_head;
-    //printf("\tinitialization complete\n");
 }
 
 /* drops <size> bytes from the beginning of block described
@@ -48,15 +43,9 @@ i.e.
 |         large node          |    
 | cropped node |  remainder   |
 
-and cropblock returns the pointer second node
+and cropblock returns a pointer to the second node
 */
 memhead *cropblock(memhead *node, unsigned int isize) {
-    /*
-    //printf("\tcropping block internal size %d from node (head=%p)\n", 
-        isize, node);
-    */
-
-    //printf("initial %p %p\n", node, node_after(node));
 
     int oldsize = node->size;
     initmemblock(node, isize);
@@ -65,12 +54,12 @@ memhead *cropblock(memhead *node, unsigned int isize) {
     initmemblock(second, oldsize - size_itoe(isize));
     second->next = node->next;
 
-    //printf("second -> next %p node->next %p\n", second->next, node->next);
     return second;
 }
 
 memhead *handleexistingblock(memhead *prev, memhead *scan, unsigned int isize) {
-    //garaunteed that prev != next 
+    //garaunteed that prev != next
+
     memhead* next;
     if (0 && scan->size - isize > BLOCK_MINSIZE) {
         // crop to size and point to remainder
@@ -89,13 +78,13 @@ memhead *handleexistingblock(memhead *prev, memhead *scan, unsigned int isize) {
 
 memhead *makenewblock(unsigned int isize) {
     unsigned int esize = size_itoe(isize);
-    //printf("\tsbrking new (%d)\n", esize);
 
-    //sbrk new space, create memblock
+    //sbrk new space
     void *oldend = sbrk_end;
     sbrk(esize+sizeof(unsigned int));
     sbrk_end = (void *)(sbrk(0));
 
+    //create memblock in new sbrkd space
     initmemblock(oldend, isize);
 
     return (memhead *) oldend;
@@ -103,42 +92,46 @@ memhead *makenewblock(unsigned int isize) {
 
 /*finds a block of size > size and the pops it from the list*/
 memhead *findblockfitting(unsigned int isize){
-    // ** so it can change the value of free_head
     // when prev is null (i.e. when first element works),
     // free_head is pointed to the free_head->next
+    // so that when you start looking again, you
+    // start at the same spot you stopped
     memhead *scan;
     memhead *prev;
     if(free_head != NULL){
         scan = free_head->next;
         prev = free_head;
     } else {
-        //printf("list is empty, making a new block\n");
+        // list is empty, just make a new block
         return makenewblock(isize);
     }
 
-    //printf("\thead of list: %p\n", scan);
-
+    // scan over list until you see everythig or
+    // find something of correct size
     while( scan!=free_head &&  
             (scan->size - isize) > BLOCK_MINSIZE){
         prev = scan;
         scan = scan->next;
     }
 
-    //printf("prev: %p, scan %p\n", prev, scan);
-
-    // if at end of list and nothing is big 
-    // enough, sbrk something of appropriate size
+    // list is a single cyclical element
+    //printf("list is a single element.\n");
     if(prev == scan){
-        // list is a single cyclical element
-        //printf("list is a single element.\n");
-        if((scan->size - isize) > BLOCK_MINSIZE){
-            // make a new one if is not right size
-            //printf("making new block\n");
+        // make a new one if is not big enough
+        if(scan->size < isize){
             return makenewblock(isize);
         }
+        // otherwise if it is too big, crop it
+        // point head to second and return
+        else if ((scan->size - isize) > BLOCK_MINSIZE){
+            free_head = cropblock(scan, isize);
+            free_head->next = free_head;
+            free_head->prev = free_head;
+            return scan;
+        }
+        // otherwise just remove the head from the list
+        // and return it
         else{
-            // otherwise just return the head
-            //printf("returning root element\n");
             free_head = NULL;
             return scan;
         }
@@ -146,18 +139,15 @@ memhead *findblockfitting(unsigned int isize){
 
     else if(scan == free_head){
         // no nodes are large enough
-        //printf("no nodes are large enough\n");
         return makenewblock(isize);
     }
     
     else {
         // there is an existing node large enough
-        //printf("handling node\n");
         return handleexistingblock(prev, scan, isize);
     }
 }
 
-#define SYSTEM_MALLOC 0
 /* mymalloc: allocates memory on the heap of the requested size. The block
              of memory returned should always be padded so that it begins
              and ends on a word boundary.
@@ -201,7 +191,6 @@ void *mymalloc(unsigned int size) {
     //printf("\tusermalloc %d complete\n\n", size);
     //debug_printmemlist(free_head);
     //printf("malloc done \n");
-
     pthread_mutex_unlock(&biglock);
 
     return ptr_etoi(mptr);    
