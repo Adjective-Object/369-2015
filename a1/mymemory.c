@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <limits.h>
-#include "malloc_structs.c"
+#include "malloc_structs.h"
 
 #define WORDSIZE (__WORDSIZE/8)
 #define BLOCK_MININTERNAL 512
@@ -37,28 +38,6 @@ void initusermalloc() {
     //printf("\tinitialization complete\n");
 }
 
-void debug_printmemlist() {
-    memhead *node = free_head;
-    //printf("\n");
-    if(node == NULL){
-        //printf("\tlist empty\n");
-    }
-    while(node != NULL){
-        /*printf("\t(start %p, end %p, size %d, next %p)\n",
-            node,
-            nodeend(node),
-            node->size,
-            node->next);
-            */
-        node = node->next;
-        if(node == free_head){
-            //printf("--INFINITE_LOOP--\n");
-            exit(1);
-        }
-    }
-    //printf("\n");
-}
-
 /* drops <size> bytes from the beginning of block described
 by node and returns a pointer to the new block.
 i.e. 
@@ -74,31 +53,28 @@ memhead *cropblock(memhead *node, unsigned int isize) {
         isize, node);
     */
 
-    unsigned int esize = size_itoe(isize);
-    memhead *second = (void *)(node) + esize +sizeof(int);
-    //printf("\tsecond %p\n", second);
-    initmemblock(second, node->size - esize -sizeof(int));
-    second->next = node->next;
+    //printf("initial %p %p\n", node, node_after(node));
+
+    int oldsize = node->size;
     initmemblock(node, isize);
+    memhead *second = node_after(node);
+    //printf("\tsecond %p\n", second);
+    initmemblock(second, oldsize - size_itoe(isize));
+    second->next = node->next;
+
+    //printf("second -> next %p node->next %p\n", second->next, node->next);
     return second;
 }
 
 memhead *handleexistingblock(memhead *prev, memhead *scan, unsigned int isize) {
-    memhead **g;
-    if (prev != NULL){
-        g = &(prev->next);
-    } else{
-        //printf ("overwriting head\n");
-        g = &(free_head);
-    }
+    memhead *nxt;
     if (scan->size - isize > BLOCK_MINSIZE) {
         // crop to size and point to remainder
         /*
         //printf("\tfound block (%p, %d), cropping to correct size\n",
             scan, scan->size);
         */
-        *g = cropblock(scan, isize);
-        return scan;
+        nxt = cropblock(scan, isize);
     } 
     else {
         // remove the block from the list
@@ -106,9 +82,14 @@ memhead *handleexistingblock(memhead *prev, memhead *scan, unsigned int isize) {
         //printf("\tfound block (%p, %d), size is close enough\n",
             scan, scan->size);
         */
-        *g = scan->next;
-        return scan;
+        nxt = scan->next;
     }
+    if(prev != NULL){
+        prev->next = nxt;
+    } else{
+        free_head = nxt;
+    }
+    return scan;
 }
 
 memhead *makenewblock(unsigned int isize) {

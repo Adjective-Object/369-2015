@@ -64,15 +64,19 @@ void *dowork(void *threadid) {
             case MALLOC:
                 debug_print("thread%li: malloc block %d (size %d)\n", id, tr.ops[i].index, tr.ops[i].size);
                 if(tr.ops[i].size == 0){
+                    #if DEBUG
                     fprintf(stderr, 
                         "Error: tried to malloc 0 for block %d (skipping)\n",
                         tr.ops[i].index);
+                    #endif
                     break;
                 }
                 tr.blocks[tr.ops[i].index] = mymalloc(tr.ops[i].size);
                 if (!tr.blocks[tr.ops[i].index]) {
+                    #if DEBUG
                     fprintf(stderr, "Error: Thread %li failed on allocation %i.\n", 
                             id, i);
+                    #endif
                 }
 				check_heap();
                 break;
@@ -80,19 +84,25 @@ void *dowork(void *threadid) {
             case FREE:
                 debug_print("thread%li: free block %d\n", id, tr.ops[i].index);
                 if(tr.blocks[tr.ops[i].index] == NULL){
+                    #if DEBUG
                     fprintf(stderr, 
                         "Error: tried to free (nil) for block %d (skipping)\n",
                         tr.ops[i].index);
+                    #endif
                     break;
                 }
                 ptr = tr.blocks[tr.ops[i].index];
                 if(myfree(ptr)) {
+                    #if DEBUG
                     fprintf(stderr, "Error: Thread%li failed on free (block %d).\n", 
                             id, i);
+                    #endif
                 }
                 break;
             default:
+                #if DEBUG
                 fprintf(stderr, "Error: bad instruction\n");
+                #endif
                 exit(1);
         }
     }
@@ -191,8 +201,8 @@ int main(int argc, char *argv[]) {
     diff = (1000000 *(end.tv_sec - start.tv_sec) 
             + (end.tv_usec - start.tv_usec));
     fprintf(stdout, "Time: %f\n", diff);
-    fprintf(stdout, "(Seconds): %f\n", diff/1000000.0);
+    fprintf(stdout, "Time in Seconds: %f\n", diff/1000000.0);
 	fprintf(stdout, "Max heap extent: %ld\n", max_heap - start_heap);
     
-    return 0;
+    exit(0);
 }

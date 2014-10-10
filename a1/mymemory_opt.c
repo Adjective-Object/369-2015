@@ -3,7 +3,10 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <limits.h>
-#include "malloc_structs.c"
+#include <assert.h>
+#include <unistd.h>
+#include "malloc_structs.h"
+
 
 #define WORDSIZE (__WORDSIZE/8)
 #define BLOCK_MININTERNAL 512
@@ -34,6 +37,7 @@ void initusermalloc() {
         free_head, 
         size_etoi(diff));
     free_head->next = free_head;
+    free_head->prev = free_head;
     //printf("\tinitialization complete\n");
 }
 
@@ -47,33 +51,37 @@ i.e.
 and cropblock returns the pointer second node
 */
 memhead *cropblock(memhead *node, unsigned int isize) {
+    /*
+    //printf("\tcropping block internal size %d from node (head=%p)\n", 
+        isize, node);
+    */
 
-    //printf("\tcropping block internal size %d from node (head=%p)\n", isize, node);
+    //printf("initial %p %p\n", node, node_after(node));
 
-    unsigned int esize = size_itoe(isize);
-    memhead *second = (void *)(node) + esize +sizeof(int);
-    
-    //printf("\tsecond %p\n", second);
-    initmemblock(second, node->size - esize -sizeof(int));
-
-    second->next = node->next;
+    int oldsize = node->size;
     initmemblock(node, isize);
+    memhead *second = node_after(node);
+    //printf("\tsecond %p\n", second);
+    initmemblock(second, oldsize - size_itoe(isize));
+    second->next = node->next;
 
+    //printf("second -> next %p node->next %p\n", second->next, node->next);
     return second;
 }
 
 memhead *handleexistingblock(memhead *prev, memhead *scan, unsigned int isize) {
     //garaunteed that prev != next 
     memhead* next;
-    if (scan->size - isize > BLOCK_MINSIZE) {
+    if (0 && scan->size - isize > BLOCK_MINSIZE) {
         // crop to size and point to remainder
         next = cropblock(scan, isize);
-    } 
+    }
     else {
         next = scan->next;
     }
 
     prev->next = next;
+    next->prev = prev;
     free_head = next;
 
     return scan;
@@ -104,46 +112,47 @@ memhead *findblockfitting(unsigned int isize){
         scan = free_head->next;
         prev = free_head;
     } else {
-        printf("list is empty, making a new block\n");
+        //printf("list is empty, making a new block\n");
         return makenewblock(isize);
     }
 
-    printf("\thead of list: %p\n", scan);
+    //printf("\thead of list: %p\n", scan);
 
     while( scan!=free_head &&  
-            scan->size < isize){
-        printf("%p\n", scan);
+            (scan->size - isize) > BLOCK_MINSIZE){
         prev = scan;
         scan = scan->next;
     }
 
-    printf("prev: %p, scan %p\n", prev, scan);
+    //printf("prev: %p, scan %p\n", prev, scan);
 
     // if at end of list and nothing is big 
     // enough, sbrk something of appropriate size
     if(prev == scan){
         // list is a single cyclical element
-        printf("list is a single element.\n");
-        if(scan->size < isize){
+        //printf("list is a single element.\n");
+        if((scan->size - isize) > BLOCK_MINSIZE){
             // make a new one if is not right size
             //printf("making new block\n");
             return makenewblock(isize);
         }
         else{
-            // otherwise just return
-            //printf("returning new element\n");
+            // otherwise just return the head
+            //printf("returning root element\n");
             free_head = NULL;
             return scan;
         }
     }
+
     else if(scan == free_head){
         // no nodes are large enough
-        printf("no nodes are large enough\n");
+        //printf("no nodes are large enough\n");
         return makenewblock(isize);
     }
+    
     else {
         // there is an existing node large enough
-        printf("handling node\n");
+        //printf("handling node\n");
         return handleexistingblock(prev, scan, isize);
     }
 }
@@ -163,21 +172,21 @@ void *mymalloc(unsigned int size) {
     return malloc(size);
     #endif
 
-    if (size == 0){
-        //printf("error on malloc size 0, returning null\n");
-        return NULL;
-    }
 
-    //printf("%d resized to ",size);
+    //return NULL on malloc 0
+    if (size == 0){ return NULL; }
 
-    if(size%WORDSIZE != 0){
-        size = (size/WORDSIZE+1)*WORDSIZE;
-    }
+    //resize to multiple of WORDSIZE
+    if(size%WORDSIZE != 0){ size = (size/WORDSIZE+1)*WORDSIZE; }
 
-    //printf("%d\n",size);
-
+    //lock
     pthread_mutex_lock(&biglock);
-    //initialize head of ptrlst
+
+    //printf("mymalloc %d\n", size);
+    //printf("header %p\n", free_head);
+    
+    //initialize the list
+    //if the list needs initialization
     if (needsinit){
         initusermalloc();
         needsinit = 0;
@@ -189,53 +198,89 @@ void *mymalloc(unsigned int size) {
 
     //printf("\tusermalloc %d complete\n\n", size);
     //debug_printmemlist(free_head);
+    //printf("malloc done \n");
+
     pthread_mutex_unlock(&biglock);
 
     return ptr_etoi(mptr);    
 }
 
 unsigned int backward_coalesce(memhead* in) {
-    //int *prevsize = (int *) in - 1;
+
     memhead *prev = node_before(in);
     if((void *)prev >= sbrk_start && prev->isfree){
-        //printf("coalesce backward (prev: %p) <- (in: %p)\n", prev, in);
-        
-        //printf("coalesce backward\n");
+        /*
+        printf("coalesce back\n");
+        printf("(this %p) (this.size %d) (prec %p) (prec.size %d)\n",
+            in, in->size, prev, prev->size
+        );*/
 
-        //debug_printmemlist(free_head);
+        //debug_printlocalmemlist(prev,10);
+
         prev->size = prev->size + size_itoe(in->size);
         int *tail = node_tail(prev);
         *tail = size_itoe(prev->size);
 
-        //debug_printmemlist(free_head);
+        //debug_printlocalmemlist(prev,10);
+
         return 1;
     }
     return 0;
 }
 
 unsigned int forward_coalesce(memhead* in) {
-    memhead *next = node_after(in);
-    if ((void *)next < sbrk_end && next->isfree){
+    memhead *after = node_after(in);
+    if ((void *)after < sbrk_end && after->isfree){
+
+        /*
         printf("coalesce forward\n");
-        debug_printmemlist(free_head);
-        in->size = in->size + size_itoe(in->size);
-        memhead *prev = (next->prev);
-        prev->next = in;
-        debug_printmemlist(free_head);
+        printf("(in %p) (after %p)\n",in,after);
+        printf("(after.size %d) (after.prev %p) | sbrk_end %p\n",
+             after->size, after->prev, sbrk_end);
+        */
+        //debug_printlocalmemlist(after,10);
+        
+        memhead *nxt = after->next;
+        in->next = nxt;
+        nxt->prev = in;
+        
+        in->size = in->size + size_itoe(after->size);
+
+        memhead *oldprev = (after->prev);
+
+        oldprev->next = in;
+        in->prev = oldprev;
+
+        int *tail = node_tail(after);
+        *tail = size_itoe(in->size);
+
+        if(free_head == after){
+            printf("reassigning free_head\n");
+            free_head = in;
+        }
+
+        //debug_printlocalmemlist(in,10);
+
         return 1;
     }
 
     return 0;
 }
 
-unsigned int insert_node(memhead *ext){
+void insert_node(memhead *insert){
     if(free_head == NULL) {
-        free_head = ext;
-        ext->next = ext;
+        free_head = insert;
+        insert->next = insert;
+        insert->prev = insert;
     } else {
         memhead *nxt = free_head->next;
-        ext->next = nxt;
-        free_head->next = ext;
+        
+        insert->prev=free_head;
+        insert->next = nxt;
+
+        free_head->next = insert;
+        nxt->prev = insert;
+
     }
 }
 
@@ -252,8 +297,9 @@ unsigned int myfree(void *ptr) {
     #endif
 
     pthread_mutex_lock(&biglock);
-    //printf("\nmyfree %p (%p)\n", ptr, ptr_itoe(ptr));
     memhead *ext = ptr_itoe(ptr);
+    //printf("\nmyfree %p (%p)\n", ptr, ext);
+    //printf("header %p\n", free_head);
 
     //check if in valid range
     if ((sbrk_start > ptr) || (sbrk_end < ptr)) {
@@ -270,14 +316,22 @@ unsigned int myfree(void *ptr) {
     ext->isfree = 1;
     
     //coalesce
-    if(backward_coalesce(ext)){ //|| forward_coalesce(ext)
+    //printf("check coalesce\n");
+    if(backward_coalesce(ext) ) {
+        //printf("coalesce done\n");
+
+        //printf("free done\n");
+
         pthread_mutex_unlock(&biglock);
         return 0;
     }
+    //printf("no coalesce\n");
 
     insert_node(ext);
 
     //debug_printmemlist(free_head);
+
+    //printf("free done \n");
     pthread_mutex_unlock(&biglock);
 
     return 0;
