@@ -54,7 +54,7 @@ def analyzeTrace(argv):
                 if reading:
                     address = line.split(" ")[-1]# find the block with the addr
                     pagenumber = address.split(",")[0][0:-3]# cut out the offset
-                    print address, pagenumber
+                    #print address, pagenumber
 
                     if isDataPage(line):
                         if(pagenumber not in datapages):
