@@ -11,6 +11,9 @@ def readMarkerFile(markerfile):
     outputs the addresses of the beginning and end of the relavant
     areas of the trace (marer_start, marker_end)
     """
+    if markerfile == "<null>":
+        return "<null>", "<null>"
+
     with open(markerfile, 'r') as f:
         m_start, m_end = f.readline().split(" ")
 
@@ -79,7 +82,9 @@ def readBody(f, line, marker_start, marker_end):
         # update line
         line = f.readline()
 
-    return len(codepages), len(datapages), insideCount, outsideCount
+    return (len(codepages), len(datapages), 
+            insideCount if marker_start != "<null>" else "",
+            outsideCount if marker_start != "<null>" else "")
 
 
 def analyzeTrace(tracefile, markerfile):
