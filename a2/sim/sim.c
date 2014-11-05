@@ -99,7 +99,8 @@ void replay_trace(FILE *infp) {
 			if(debug)  {
 				printf("%c %lx, %u\n", type, vaddr, length);
 			}
-			access_mem(type, vaddr);
+			// only pass the page in (drop the last 12 digs)
+			access_mem(type, vaddr & (~ 0xfff));
 		} else {
 			continue;
 		}

@@ -82,9 +82,7 @@ def readBody(f, line, marker_start, marker_end):
         # update line
         line = f.readline()
 
-    return (len(codepages), len(datapages), 
-            insideCount if marker_start != "<null>" else "",
-            outsideCount if marker_start != "<null>" else "")
+    return (len(codepages), len(datapages), insideCount, outsideCount)
 
 
 def analyzeTrace(tracefile, markerfile):
