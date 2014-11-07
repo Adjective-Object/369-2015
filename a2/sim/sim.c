@@ -16,6 +16,8 @@ int hit_count = 0;
 int miss_count = 0;
 int ref_count = 0;
 
+int cmd_time = 0;
+
 /* The algs array gives us a mapping between the name of an eviction
  * algorithm as given in a command line argument, and the function to
  * call to select the victim page.
@@ -71,19 +73,23 @@ int find_frame(struct page *p) {
 }
 
 void access_mem(char type, addr_t vaddr) {
-	ref_count ++;
+	ref_count++;
 	// get the page
 	addr_t vpage = vaddr & ~0xfff;
+
 	// make sure the page is in the page table
 	struct page *p = pagetable_insert(vpage, type);
 	assert(p != NULL);
 
 	// If p->pframe is -1 then the page is not in physical memory
+	p->access_time = cmd_time;
 	if(p->pframe == -1) {
 		miss_count++;
+		p->insert_time = cmd_time;
 		p->pframe = find_frame(p);
 	} else {
 		hit_count++;
+		p->referenced = true;
 	}
 }
 
@@ -104,7 +110,7 @@ void replay_trace(FILE *infp) {
 		} else {
 			continue;
 		}
-
+		cmd_time ++;
 	}
 }
 

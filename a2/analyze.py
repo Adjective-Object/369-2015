@@ -48,6 +48,8 @@ def readBody(f, line, marker_start, marker_end):
     inside = False
 
     while not line.startswith("=="):
+        
+        
         # only count when between mem markers
         # find the block with the addr
         address = line.split(" ")[-1].split(",")[0]
