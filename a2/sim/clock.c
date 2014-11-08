@@ -23,7 +23,7 @@ int insertedcount = 0;
 void clock_insert(struct page *p){
 	p->referenced=true;
 	slots[insertedcount] = p;
-	insertedcount ++;
+	insertedcount++;
 }
 
 int clock_evict(struct page *p) {
@@ -31,7 +31,7 @@ int clock_evict(struct page *p) {
 		slots[clockhand]->referenced = false;
 		clockhand = (clockhand + 1) % memsize;
 	}
-	return p->pframe;
+	return slots[clockhand]->pframe;
 }
 
 void clock_access(struct page *p) {
