@@ -21,9 +21,40 @@ extern struct frame *coremap;
  */
 
 int opt_evict(struct page *p) {
-	
-	return 0;
+	//advance the usage time pointer on p	
+	map_next(p->vaddr);	
+
+	int max_nextuse = 0;
+	int curmax = 0;
+	int frame;
+	for(frame=0; frame < memsize; frame++){	
+		int frameaddr = coremap[frame].vaddr;
+		int nuse = map_peek(frameaddr);
+		if (nuse > max_nextuse) {
+			max_nextuse = nuse;
+			curmax = frame;
+		}
+	}
+
+	#if DEBUG
+	printf("evicting slot %d (%x)  for %x\n", 
+		curmax, 
+		coremap[curmax].vaddr,
+		p->vaddr);	
+	#endif
+
+	return curmax;
 }
+
+void opt_advanceptr(struct page *p){
+	//step forward the "accessed" pointer on the hashmap
+	#if DEBUG
+	printf("advancing pointer for %x\n", p->vaddr);
+	#endif
+	map_next(p->vaddr);
+}
+
+
 
 /* Initializes any data structures needed for this
  * replacement algorithm.
@@ -40,10 +71,8 @@ void opt_init() {
 	int length;
 	addr_t vaddr;
 
-
-	printf("initializing map\n");
+	// initialize the global map
 	map_init();
-	printf("done init\n");
 
 	// read file line by line and build the hashmap 
 	while(fgets(buf, MAXLINE, file)) {
@@ -51,15 +80,19 @@ void opt_init() {
 			sscanf(buf, " %c %lx,%u", &type, &vaddr, &length);
 			// only pass the page in (drop the last 12 digs)
 			vaddr = vaddr & (~0xfff);
-			printf("inserting %x\n as %d", vaddr, line_no);
 			map_insert(vaddr, line_no);
 			line_no++;
 		} else {
 			continue;
 		}
 	}
-	map_print();
 
+	// reset the "trace" on the map (so the linked lists
+	// in each slot can be consumed as if they were streams)
+	map_rsttrace();
+	if(debug) {	
+		map_print();
+	}
 }
 
 

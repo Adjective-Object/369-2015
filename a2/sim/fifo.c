@@ -20,6 +20,8 @@ extern struct page *ll_head;
 extern struct page *ll_tail;
 
 void fifo_insert(struct page *p){
+
+	//printf("inserting\n");
 	
 	// tell this node it comes before head       	
 	p->next = ll_head;
@@ -43,10 +45,9 @@ void fifo_insert(struct page *p){
 
 int fifo_evict(struct page *p) {
 
-	// grab the tail and tell it it's not im memory
+	// grab the tail and tell it it's not in memory
 	int lru_frame = ll_tail->pframe;	
-	printf("evicting from frame %d\n", ll_tail->pframe);
-	ll_tail->pframe = -1;
+	// printf("evicting from frame %d\n", ll_tail->pframe);
 
 	struct page  *newtail = ll_tail->prev;
 	// previous will always be non-null
@@ -57,6 +58,10 @@ int fifo_evict(struct page *p) {
 	// insert the node at the head of the list
 	p->prev = NULL;
 	p->next = ll_head;
+
+	// edge case for 1 mem bin
+	if (ll_head != p)
+		ll_head->prev = p;
 	ll_head = p;
 
 	// and set the old tail
@@ -67,6 +72,8 @@ int fifo_evict(struct page *p) {
 
 // initialize fifo
 void fifo_init() {
+	//printf("fifo init\n");
+
 	ll_head = NULL;
 	ll_tail = NULL;
 }

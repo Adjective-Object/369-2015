@@ -7,6 +7,7 @@
 #include "pagetable.h"
 
 #define MAXLINE 256
+#define DEBUG 0
 
 int memsize = 0;
 
@@ -35,7 +36,7 @@ struct functions algs[] = {
 	{"lru", fifo_init, fifo_evict, fifo_insert, lru_access},
 	{"fifo", fifo_init, fifo_evict, fifo_insert, void_fcn},
 	{"clock",clock_init, clock_evict, clock_insert, clock_access},
-	{"opt", opt_init, opt_evict, void_fcn, void_fcn}
+	{"opt", opt_init, opt_evict, opt_advanceptr, opt_advanceptr}
 };
 int num_algs = 5;
 
@@ -80,7 +81,11 @@ int find_frame(struct page *p) {
 
 void access_mem(char type, addr_t vaddr) {
 	ref_count++;
-	printf("memory access %d \n", ref_count);
+	
+	#if DEBUG
+	printf("memory access %d (%x)\n", ref_count. vaddr);
+	#endif
+	
 	// get the page
 	addr_t vpage = vaddr & ~0xfff;
 
@@ -185,8 +190,7 @@ int main(int argc, char *argv[]) {
 	printf("Hit count: %d\n", hit_count);
 	printf("Miss count: %d\n", miss_count);
 	printf("Total references : %d\n", ref_count);
-	printf("Hit rate: %.1f\n", (double)hit_count/ref_count * 100);
-	printf("Miss rate: %.1f\n", (double)miss_count/ref_count *100);
-		
+	printf("Hit rate: %.4f\n", (double)hit_count/ref_count * 100);
+	printf("Miss rate: %.4f\n", (double)miss_count/ref_count *100); 	
 	return(0);
 }

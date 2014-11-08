@@ -35,14 +35,18 @@ void lru_access(struct page *p){
 	if (next != NULL)
 		next->prev = prev;
 
-	if (p == ll_tail)
+	if (p == ll_tail && prev != NULL)
 		ll_tail = prev;
 
-	if (p == ll_head)
+	if (p == ll_head && next != NULL)
 		ll_head = next;
 
-	//and put it at the head
-	p->next = ll_head;
-	p->prev = NULL;	
+	//and put it at the head of the list
+	if (ll_head != p) {
+		// in case the list is a single element 
+		ll_head->prev = p;
+		p->next = ll_head;
+		p->prev = NULL;	
+	}
 	ll_head = p;
 }

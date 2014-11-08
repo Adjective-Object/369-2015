@@ -2,12 +2,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 
 #ifndef HASHMAP_TERRIBLE_KUN
 #define HASHMAP_TERRIBLE_KUN
 
 // below is a hashmap of int -> dynamically sized list of ints
-// in order to map the actual pointer values to the indecies of 
+// in order to ap the actual pointer values to the indecies of 
 // the pointer-access order arrays
 
 #define NUM_BINS 10
@@ -70,26 +71,34 @@ void map_insert(int key, int value) {
 	struct hashpair *prev = NULL;
 	struct hashpair *cur  = hashbins[hval];
 	while (cur != NULL){
-		prev = cur;
-		cur = cur->next;
 		if (cur->key == key){
 			lst_append(cur->trace, value);
 			cur->trace = cur->trace->next;
-			return;
+			return;		
 		}
+		prev = cur;
+		cur = cur->next;
 	}
-	prev->next = makenewhashpair(key, value);
+	if (prev != NULL)
+		prev->next = makenewhashpair(key, value);
+	else
+		hashbins[hval] = makenewhashpair(key,value);
 }
 
-// gets an item from the 'cur' element of the ll pointed to
+// gets an item from the 'trace' element of the ll pointed to
 // by the key in this hashmap
-int map_retr(int key) {
+int map_retr(int key, bool advancePtr) {
 	int hval = hash(key);
 	struct hashpair *cur  = hashbins[hval];
 	while (cur!= NULL){
 		if (cur->key == key){
+			if(cur->trace == NULL){
+				return INT_MAX;
+			}
 			int toret = cur->trace->val;
-			cur->trace = cur->trace->next;		
+			if (advancePtr){
+				cur->trace = cur->trace->next;
+			}
 			return toret;
 		}
 		cur = cur->next;
@@ -97,13 +106,33 @@ int map_retr(int key) {
 	return -1;
 }
 
+int map_next(int key){
+	return map_retr(key, true);
+}
+
+int map_peek(int key){
+	return map_retr(key, false);
+}
+
+void map_rsttrace(){
+	int i;
+	for (i=0; i<NUM_BINS; i++){
+		struct hashpair *pair = hashbins[i];
+		while (pair != NULL) {
+			pair->trace = pair->head;
+			pair = pair->next;
+		}
+	}
+}
+
 void lst_print(struct lstelem *node) {
 	if(node == NULL){
 		printf("\n");
 	} else{
 		printf("%d ", node->val);
+		fflush(stdout);
+		lst_print(node->next);
 	}
-	lst_print(node->next);
 }
 
 
@@ -111,16 +140,20 @@ void hashl_print(struct hashpair *node) {
 	if(node == NULL){
 		printf("\n");
 	} else{
-		printf("%d ", node->key);
+		printf("(%x)\t", node->key);
+		lst_print(node->head);
+		printf("    ");
+		fflush(stdout);
+		hashl_print(node->next);
 	}
-	hashl_print(node->next);
 }
 
 void map_print() {
 	int i;
 	for (i=0; i<NUM_BINS; i++) {
-		printf("%d - ", i);
-		lst_print(hashbins[i]->head);
+		printf("%d : ", i);
+		fflush(stdout);
+		hashl_print(hashbins[i]);
 	}
 }
 
