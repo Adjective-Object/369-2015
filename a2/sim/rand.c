@@ -8,10 +8,7 @@
 #define MAXLINE 256
 
 extern int memsize;
-
 extern int debug;
-
-
 extern struct frame *coremap;
 
 int rand_evict(struct page *p) {
@@ -26,5 +23,3 @@ int rand_evict(struct page *p) {
 	return slot;
 }
 
-void rand_init() {
-}

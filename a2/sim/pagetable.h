@@ -3,11 +3,18 @@
 #include "avl.h"
 #include <stdbool.h>
 
+#ifndef SIM_HEADER
+#define SIM_HEADER
+
 /* The avl tree is a simple way to get a fast look up table, and is
  * used to implement the page table.
  */
 extern struct avl_table *avl_tree;
 extern struct libavl_allocator avl_allocator_default;
+
+// linked list tracking  used in lru and fifo
+struct page *ll_head;
+struct page *ll_tail;
 
 typedef unsigned long addr_t;
 
@@ -16,17 +23,13 @@ struct page {
 	char type;    // Instruction or data
 	int pframe;   // Page frame number. -1 if not in physical memory
 	
-
-	//last time accessed in terms of #s of operations
-	//(used for FIFO)
-	uint insert_time;
-
-	//last time accessed in terms of #s of operations
-	//(used for LRU)
-	uint access_time;
-
-	//if the block has been used (for LRU_Clock)
+	// if the block has been used (for clock)
 	bool referenced;
+	
+	// next and previous counters, for putting blocks
+	// in a linked list (for fifo, lru)
+	struct page *next;
+	struct page *prev;
 };
 
 
@@ -44,13 +47,23 @@ struct frame {
 };
 
 void rand_init();
-void lru_init();
 void clock_init();
-void fifo_init();
 void opt_init();
+void fifo_init();
+
+void rand_insert();
+void lru_insert();
+void clock_insert();
+void fifo_insert();
+void opt_insert();
+
+void rand_access();
+void lru_access();
+void clock_access();
 
 int rand_evict(struct page *p);
 int lru_evict(struct page *p);
 int clock_evict(struct page *p);
 int fifo_evict(struct page *p);
 int opt_evict(struct page *p);
+#endif

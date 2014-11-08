@@ -16,30 +16,33 @@ int hit_count = 0;
 int miss_count = 0;
 int ref_count = 0;
 
-int cmd_time = 0;
-
 /* The algs array gives us a mapping between the name of an eviction
- * algorithm as given in a command line argument, and the function to
+   algorithm as given in a command line argument, and the function to
  * call to select the victim page.
  */
 struct functions {
-	char *name;
+	char *name;	
 	void (*init)(void);
 	int (*evict)(struct page *);
+	void (*insert)(struct page *);
+	void (*access)(struct page *);
 };
 
+void void_fcn(){};
+
 struct functions algs[] = {
-	{"rand", rand_init, rand_evict}, 
-	{"lru", lru_init, lru_evict},
-	{"fifo", fifo_init, fifo_evict},
-	{"clock",clock_init, clock_evict},
-	{"opt", opt_init, opt_evict}
+	{"rand", void_fcn, rand_evict, void_fcn, void_fcn}, 
+	{"lru", fifo_init, fifo_evict, fifo_insert, lru_access},
+	{"fifo", fifo_init, fifo_evict, fifo_insert, void_fcn},
+	{"clock",clock_init, clock_evict, clock_insert, clock_access},
+	{"opt", opt_init, opt_evict, void_fcn, void_fcn}
 };
 int num_algs = 5;
 
 int (*evict_fcn)(struct page *) = NULL;
 void (*init_fcn)() = NULL;
-
+void (*insert_fcn)(struct page *) = NULL;
+void (*access_fcn)(struct page *) = NULL;
 
 /* The coremap holds information about physical memory.
  * The index into coremap is the physical page number stored
@@ -63,8 +66,11 @@ int find_frame(struct page *p) {
 		}
 	}
 	if(frame == -1) {
-		// Didn't find a free page
+		// Didn't find a free page, evict something else
 		frame = evict_fcn(p);
+	} else { 
+		// initial insert{
+		insert_fcn(p);
 	}
 	coremap[frame].in_use = 1;
 	coremap[frame].vaddr = p->vaddr;
@@ -74,6 +80,7 @@ int find_frame(struct page *p) {
 
 void access_mem(char type, addr_t vaddr) {
 	ref_count++;
+	printf("memory access %d \n", ref_count);
 	// get the page
 	addr_t vpage = vaddr & ~0xfff;
 
@@ -82,14 +89,14 @@ void access_mem(char type, addr_t vaddr) {
 	assert(p != NULL);
 
 	// If p->pframe is -1 then the page is not in physical memory
-	p->access_time = cmd_time;
 	if(p->pframe == -1) {
+		// get it into memorty
 		miss_count++;
-		p->insert_time = cmd_time;
 		p->pframe = find_frame(p);
 	} else {
+		//it's in memory, so hit!
 		hit_count++;
-		p->referenced = true;
+		access_fcn(p);
 	}
 }
 
@@ -98,6 +105,8 @@ void replay_trace(FILE *infp) {
 	addr_t vaddr = 0;
 	int length = 0;
 	char type;
+
+	init_fcn();
 
 	while(fgets(buf, MAXLINE, infp) != NULL) {
 		if(buf[0] != '=') {
@@ -110,7 +119,6 @@ void replay_trace(FILE *infp) {
 		} else {
 			continue;
 		}
-		cmd_time ++;
 	}
 }
 
@@ -153,6 +161,8 @@ int main(int argc, char *argv[]) {
 			if(strcmp(algs[i].name, replacement_alg) == 0) {
 				init_fcn = algs[i].init;
 				evict_fcn = algs[i].evict;
+				insert_fcn = algs[i].insert;
+				access_fcn = algs[i].access;
 				break;
 			}
 		}

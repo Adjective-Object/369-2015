@@ -5,33 +5,68 @@
 #include <stdlib.h>
 #include "pagetable.h"
 
-
 extern int memsize;
 extern int debug;
 extern struct frame *coremap;
 
-// list of ints of page numbers
-struct frame *fifo_buffer;
-// points to the next thing to be evicted
-int fifo_count;
+/* Handles the first insert of a page into LRU (i.e. inserts
+ * as a result of cold misses)
+ */
 
-/* Page to evict is chosen using the fifo algorithm
+// track the head and the tail of the linked list
+// nodes in the linked list are inserted at the front, so the
+// oldest node will always be at the back of the linked list.
+extern struct page *ll_head;
+extern struct page *ll_tail;
+
+void fifo_insert(struct page *p){
+	
+	// tell this node it comes before head       	
+	p->next = ll_head;
+	p->prev = NULL;
+	if (ll_head != NULL)
+		ll_head->prev = p;
+
+	// insert it at the head of the linked list
+	ll_head = p;
+
+	// and set it as the tail too in a 1 element linked list
+	if (ll_tail == NULL) 
+		ll_tail = ll_head;
+	
+}
+
+/* Page to evict is the tail of the list
  * Returns the slot in the coremap that held the page that
  * was evicted.
  */
 
 int fifo_evict(struct page *p) {
 
-	int pagenumber = *(fifo_buffer + fifo_count);
-	fifo_count = (fifo_count + 1) % memsize;
+	// grab the tail and tell it it's not im memory
+	int lru_frame = ll_tail->pframe;	
+	printf("evicting from frame %d\n", ll_tail->pframe);
+	ll_tail->pframe = -1;
+
+	struct page  *newtail = ll_tail->prev;
+	// previous will always be non-null
+	// because evict is only ever called on a
+	// full list.
+	newtail->next = NULL;
+
+	// insert the node at the head of the list
+	p->prev = NULL;
+	p->next = ll_head;
+	ll_head = p;
+
+	// and set the old tail
+	ll_tail = newtail;
 	
-	return curframe->vaddr;
+       	return lru_frame;
 }
 
-/* Initialize any data structures needed for this 
- * replacement algorithm 
- */
+// initialize fifo
 void fifo_init() {
-	fifo_buffer = malloc(sizeof(struct frame) * memsize);
-	fifo_count = 0;
+	ll_head = NULL;
+	ll_tail = NULL;
 }
