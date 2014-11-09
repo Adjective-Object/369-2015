@@ -31,3 +31,9 @@ tables : sim tablemaker.py
 		-f a2-traces/simpleloop a2-traces/matmul-100 a2-traces/blocked-100-25 \
 		-m 50 100 150 200 \
 		-a opt >> tables
+
+clock :
+	python ./tablemaker.py \
+		-f a2-traces/simpleloop a2-traces/matmul-100 a2-traces/blocked-100-25 \
+		-m 50 100 150 200 \
+		-a clock

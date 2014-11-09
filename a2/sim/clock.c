@@ -35,6 +35,7 @@ int clock_evict(struct page *p) {
 	int toret = slots[clockhand]->pframe;
 	slots[clockhand]->pframe = -1;
 	slots[clockhand] = p;
+	p->referenced = true;
 	return toret;
 }
 
