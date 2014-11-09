@@ -31,7 +31,11 @@ int clock_evict(struct page *p) {
 		slots[clockhand]->referenced = false;
 		clockhand = (clockhand + 1) % memsize;
 	}
-	return slots[clockhand]->pframe;
+	
+	int toret = slots[clockhand]->pframe;
+	slots[clockhand]->pframe = -1;
+	slots[clockhand] = p;
+	return toret;
 }
 
 void clock_access(struct page *p) {

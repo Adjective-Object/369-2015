@@ -20,8 +20,20 @@ extern struct frame *coremap;
  * was evicted.
  */
 
+struct page **pages;
+int initialinsertcounter = 0;
+
+void opt_insert(struct page *p){
+	pages[initialinsertcounter] = p;
+	//printf("initial insert %d", initialinsertcounter);
+	initialinsertcounter ++;
+	
+	// advance the usage time on pointer p (for initial use)
+	map_next(p->vaddr);
+}
+
 int opt_evict(struct page *p) {
-	//advance the usage time pointer on p	
+	// advance the usage time pointer on p(for some intermittent use)
 	map_next(p->vaddr);	
 
 	int max_nextuse = 0;
@@ -36,23 +48,27 @@ int opt_evict(struct page *p) {
 		}
 	}
 
-	#if DEBUG
+	if(debug)
 	printf("evicting slot %d (%x)  for %x\n", 
 		curmax, 
 		coremap[curmax].vaddr,
 		p->vaddr);	
-	#endif
+
+	//TODO set the evicted page's addr to -1;
+	pages[curmax]->pframe = -1;
+	pages[curmax] = p;
 
 	return curmax;
 }
 
 void opt_advanceptr(struct page *p){
-	//step forward the "accessed" pointer on the hashmap
+	// step forward the "accessed" pointer on the hashmap
+	// yea dog
 	#if DEBUG
 	printf("advancing pointer for %x\n", p->vaddr);
 	#endif
 	map_next(p->vaddr);
-}
+} 
 
 
 
@@ -62,7 +78,9 @@ void opt_advanceptr(struct page *p){
 void opt_init() {
 	// read the in line by line, and generate a list of access times
 	// for each pointer accessed in the file
-	int line_no = 0;
+	int line = 0;
+
+	pages = malloc(sizeof(struct page *) * memsize);
 
 	char buf[MAXLINE];
 	FILE *file = fopen(tracefile, "r");
@@ -76,14 +94,12 @@ void opt_init() {
 
 	// read file line by line and build the hashmap 
 	while(fgets(buf, MAXLINE, file)) {
+		line++;
+		
 		if(buf[0] != '=') {
 			sscanf(buf, " %c %lx,%u", &type, &vaddr, &length);
-			// only pass the page in (drop the last 12 digs)
-			vaddr = vaddr & (~0xfff);
-			map_insert(vaddr, line_no);
-			line_no++;
-		} else {
-			continue;
+			// only pass the page in (drop the last 12 bits)
+			map_insert((vaddr & ~ 0xfff), line);
 		}
 	}
 

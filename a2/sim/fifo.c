@@ -47,6 +47,7 @@ int fifo_evict(struct page *p) {
 
 	// grab the tail and tell it it's not in memory
 	int lru_frame = ll_tail->pframe;	
+	ll_tail->pframe = -1;
 	// printf("evicting from frame %d\n", ll_tail->pframe);
 
 	struct page  *newtail = ll_tail->prev;

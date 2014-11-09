@@ -11,7 +11,7 @@
 // in order to ap the actual pointer values to the indecies of 
 // the pointer-access order arrays
 
-#define NUM_BINS 10
+#define NUM_BINS 256 
 
 struct lstelem{
 	int val;
@@ -32,7 +32,7 @@ struct hashpair *hashbins[NUM_BINS];
 
 // laziest hashfunction ever
 int hash(int x){
-	return x % NUM_BINS;
+	return ((x >> 12) + (x>> 14)) % NUM_BINS;
 }
 
 // appends an item to a list

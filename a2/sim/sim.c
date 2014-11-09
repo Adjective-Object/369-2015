@@ -36,7 +36,7 @@ struct functions algs[] = {
 	{"lru", fifo_init, fifo_evict, fifo_insert, lru_access},
 	{"fifo", fifo_init, fifo_evict, fifo_insert, void_fcn},
 	{"clock",clock_init, clock_evict, clock_insert, clock_access},
-	{"opt", opt_init, opt_evict, opt_advanceptr, opt_advanceptr}
+	{"opt", opt_init, opt_evict, opt_insert, opt_advanceptr}
 };
 int num_algs = 5;
 
@@ -69,6 +69,8 @@ int find_frame(struct page *p) {
 	if(frame == -1) {
 		// Didn't find a free page, evict something else
 		frame = evict_fcn(p);
+		//printf("%d ",frame);
+		//fflush(stdout);
 	} else { 
 		// initial insert{
 		insert_fcn(p);
@@ -83,7 +85,7 @@ void access_mem(char type, addr_t vaddr) {
 	ref_count++;
 	
 	#if DEBUG
-	printf("memory access %d (%x)\n", ref_count. vaddr);
+	// printf("memory access %d (%x)\n", ref_count. vaddr);
 	#endif
 	
 	// get the page

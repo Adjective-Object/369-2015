@@ -52,7 +52,6 @@ void clock_init();
 void opt_init();
 void fifo_init();
 
-// used for both insert and access on opt
 void opt_advanceptr();
 
 //called when a page is inserted into memory (on cold miss)
@@ -60,6 +59,7 @@ void rand_insert();
 void lru_insert();
 void clock_insert();
 void fifo_insert();
+void opt_insert();
 
 // called when a page is in memory and is accessed (on hit)
 void rand_access();
