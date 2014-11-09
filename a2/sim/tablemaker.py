@@ -29,9 +29,9 @@ def printTable(table):
         if(row == None):
            print "|" + (rowlen-2) * "-" + "|"
         else:
-        	row = [row[i] + " " * 
-            		(cwidths[i] - len(row[i])) for i in range(len(row))]
-       	 	print "| "+" | ".join(row)+" |"
+           row = [row[i] + " " * 
+                   (cwidths[i] - len(row[i])) for i in range(len(row))]
+       	   print "| "+" | ".join(row)+" |"
 
     print " " + (rowlen-2) * "-" + " "
 
@@ -40,7 +40,7 @@ def dosim(fil, mem, alg):
 			"-f", fil, 
 			"-m", mem, 
 			"-a", alg]
-	print execstr
+	#print execstr
 	sub = subprocess.Popen(execstr, stdout=subprocess.PIPE)
 	out, err = sub.communicate()
 
@@ -78,10 +78,10 @@ if __name__ == "__main__":
 			print "do ur args better"
 			sys.exit()
 	
-	print args
+	#print args
 
 	# Initialize the headers of the table
-	table = [["algorithm", "m", "trace", "Hits", "Misses", "Total", "Hit Rate", "Miss Rate"]]
+	table = [["Alg", "m", "Trace", "Hits", "Misses", "Total", "HitRt", "MissRt"]]
 
 	for alg in args["a"]:
 		table.append(None)

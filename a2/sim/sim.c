@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
+#include <assert.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -7,7 +9,6 @@
 #include "pagetable.h"
 
 #define MAXLINE 256
-#define DEBUG 0
 
 int memsize = 0;
 
@@ -22,11 +23,11 @@ int ref_count = 0;
  * call to select the victim page.
  */
 struct functions {
-	char *name;	
-	void (*init)(void);
-	int (*evict)(struct page *);
-	void (*insert)(struct page *);
-	void (*access)(struct page *);
+	char *name;			// the name of the algorithm
+	void (*init)(void);		// called once, before any lines are processed
+	int (*evict)(struct page *);	// called every time a page is evicted (capacity miss)
+	void (*insert)(struct page *);	// called when a page is first inserted (cold miss)
+	void (*access)(struct page *);  // called when a page is accessed (hit)
 };
 
 void void_fcn(){};
@@ -84,9 +85,6 @@ int find_frame(struct page *p) {
 void access_mem(char type, addr_t vaddr) {
 	ref_count++;
 	
-	#if DEBUG
-	// printf("memory access %d (%x)\n", ref_count. vaddr);
-	#endif
 	
 	// get the page
 	addr_t vpage = vaddr & ~0xfff;

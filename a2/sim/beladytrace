@@ -25,7 +25,7 @@ I  00019aaa,0
 I  00020aaa,0
 ==
 == =====================================================
-== read pages 0-21, causing them to be re-cached in the
+== read pages 0,1,21
 I  00000aaa,0
 I  00001aaa,0
 I  00021aaa,0
