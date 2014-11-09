@@ -1,0 +1,56 @@
+======================================================
+== read pages 0-20 in to overflow the first buffer and
+== fill the second buffer. This causes a capacity miss
+== on the first buffer. 
+I  00000aaa,0
+I  00001aaa,0
+I  00002aaa,0
+I  00003aaa,0
+I  00004aaa,0
+I  00005aaa,0
+I  00006aaa,0
+I  00007aaa,0
+I  00008aaa,0
+I  00009aaa,0
+I  00010aaa,0
+I  00011aaa,0
+I  00012aaa,0
+I  00013aaa,0
+I  00014aaa,0
+I  00015aaa,0
+I  00016aaa,0
+I  00017aaa,0
+I  00018aaa,0
+I  00019aaa,0
+I  00020aaa,0
+==
+== =====================================================
+== read pages 0-21, causing them to be re-cached in the
+I  00000aaa,0
+I  00001aaa,0
+I  00021aaa,0
+== =====================================================
+== read pages 0-21 again
+I  00000aaa,0
+I  00001aaa,0
+I  00002aaa,0
+I  00003aaa,0
+I  00004aaa,0
+I  00005aaa,0
+I  00006aaa,0
+I  00007aaa,0
+I  00008aaa,0
+I  00009aaa,0
+I  00010aaa,0
+I  00011aaa,0
+I  00012aaa,0
+I  00013aaa,0
+I  00014aaa,0
+I  00015aaa,0
+I  00016aaa,0
+I  00017aaa,0
+I  00018aaa,0
+I  00019aaa,0
+I  00020aaa,0
+I  00021aaa,0
+
