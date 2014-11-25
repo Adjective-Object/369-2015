@@ -4,15 +4,15 @@ import sys, math
 def getDiff(file1, file2):
 	lineno = 0
 	diffBlocks = []
-	blocksize = 24
+	blocksize = 16
 	block1 = file1.read(blocksize)
 	block2 = file2.read(blocksize)
 
 	while block1 != "" and block2 != "":
+		lineno += 1
 		if(block1 != block2):
 			diffBlocks.append( (lineno, block1, block2) )
 
-		lineno += 1
 		block1 = file1.read(blocksize)
 		block2 = file2.read(blocksize)
 
