@@ -180,8 +180,14 @@ int main(int argc, char *argv[]) {
 
 		
 	init_pagetable();
-	coremap = malloc(memsize * sizeof(struct frame));
 
+	// in the deault starter code,	
+	// coremap is never memset but gets referenced later
+	// leading to peculier behavior, particularly in the case of
+	// ciremap[i].in_use
+	coremap = malloc(memsize * sizeof(struct frame));
+	memset(coremap, 0, memsize * sizeof(struct frame));
+	
 	replay_trace(tfp);
 	//print_pagetable();
 
