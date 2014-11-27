@@ -1,13 +1,10 @@
-#ifndef EXT2_369
-#define EXT2_369
+#ifndef EXT2_SUPERBLOCK_369
+#define EXT2_SUPERBLOCK_369
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-typedef uint32_t uint;
-typedef uint16_t ushort;
-typedef unsigned __int128 uvlong;
+#include "ext2.h"
 
 /*******************************/
 /* SUPERBLOCK FIELDS, IN ORDER */
@@ -15,6 +12,9 @@ typedef unsigned __int128 uvlong;
 
 //general
 
+#define SUPERBLOCK_SIZE 1024
+
+struct superblock {
 uint   s_inodes_count;       // inodes in system (used and free)
 uint   s_blocks_count;       // blocks in system (used and free)
 uint   s_r_blocks_count;     // blocks reserved for superuser
@@ -65,7 +65,7 @@ ushort s_def_resgid;         // default group id for reserved blocks
 
 // EXT2 DYANMIC REV Specific
 uint   s_first_ino;          // first inode for standard files  (11 in old)
-ushort s_inode_size;           // size of inode					(128 in old)
+ushort s_inode_size;         // size of inode					(128 in old)
 ushort s_block_group_nr;     //	the block group hosting this superblock
 
 // http://www.nongnu.org/ext2-doc/ext2.html#S-FEATURE-COMPAT
@@ -80,6 +80,7 @@ uvlong s_volume_name;        // name of the filesystem, ISO-Latin-1, \0 term'd
     // we don't care about this field at all, so we'll skip it
     // just remember that it is 64 byes wide, so we need to fseek past it
 
+char padding_s_last_mounted[64];
 uint   s_algo_bitmap;        // compression algorithms used
 
 // Performance hits (prealoc blocks)
@@ -93,12 +94,20 @@ uint   s_last_orphan;        // first inode in a list of inodes to be deleted
 
 // Directory Indexing with Hashes
 	// don't need to support this, skip 20 bytes
+char padding_hash_indexing[20];
 
 // these might just be ext3, so who cares for now
 // uint   s_default_mount_options;
 // uint   s_first_meta_bg;
+} __attribute__((packed));
+typedef struct superblock superblock;
 
-void parse_super(FILE *f);
+superblock *parse_super(FILE *f);
+
+
+superblock *superblock_root;
+uint c_block_size;
+uint c_num_block_groups;
 
 #endif
 

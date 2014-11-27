@@ -1,72 +1,120 @@
 #include "superblock.h"
+#include "ext2.h"
+#include <stdio.h>
+#include <string.h>
 
+extern char is_little_endian;
 
-#define read_sp(var) if ( fread(&var, sizeof(var), 1, f) == 0 ) {\
-	perror("fail on read variable " #var " from super block");\
-	exit(1);\
+void fix_endian(superblock *s) {
+    efix(s_inodes_count);
+    efix(s_blocks_count);
+    efix(s_r_blocks_count);
+    efix(s_free_blocks_count);
+    efix(s_free_inodes_count);
+    efix(s_first_data_block);
+
+    efix(s_log_block_size);
+    efix(s_log_frag_size);
+
+    efix(s_blocks_per_group);
+    efix(s_frags_per_group);
+
+    efix(s_mtime);
+    efix(s_wtime);
+
+    efix(s_mnt_count);
+    efix(s_max_mnt_count);
+
+    efix(s_magic);
+    efix(s_state);
+
+    efix(s_errors);
+
+    efix(s_minor_rev_level);
+
+    efix(s_lastcheck);
+    efix(s_checkinterval);
+
+    efix(s_creator_os);
+    efix(s_rev_level);
+
+    efix(s_def_resuif);
+    efix(s_def_resgid);
+
+    efix(s_first_ino);
+    efix(s_inode_size);
+    efix(s_block_group_nr);
+
+    efix(s_feature_compat);
+    efix(s_feature_incompat);
+    efix(s_feature_ro_compat);
+
+	efix(s_uuid);
+	efix(s_volume_name);
+
+    efix(s_algo_bitmap);
+
+	efix(s_journal_uuid);
+    efix(s_journal_inum);
+    efix(s_journal_dev);
+    efix(s_last_orphan);
 }
 
-#define skip(amt) fseek(f, amt, SEEK_CUR);
+void check_and_fix_endian(superblock *s) {
+	if (is_little_endian) {
+		printf("this system is little endian, do not need to flip byte order\n");
+	} else{
+		printf("this system is big endian, performing swap on superblock\n");
+		fix_endian(s);
+	}
+}
 
-void parse_super(FILE *f) {
-	//assumes the current fp is pointing to the head of a super block
+void verify(superblock *s) {
+	if (s->s_magic != 0xEF53) {
+		// TODO graceful fail for reading multiple super blocks
+		// with conflicts
+		fprintf(stderr, "superblock failed magic test, panicing and exit\n");
+		exit(1);
+	}
+}
 
-	// read the first block of values in, order matters
-	// (see superblock.h for meanings)
-	// it's times like these I wish C had recursive vararg macros
-	read_sp(s_inodes_count);
-	read_sp(s_blocks_count);
-	read_sp(s_r_blocks_count);
-	read_sp(s_free_blocks_count);
-	read_sp(s_free_inodes_count);
-	read_sp(s_first_data_block);
-	
-	read_sp(s_log_block_size);
-	read_sp(s_log_frag_size);
-	
-	read_sp(s_blocks_per_group);
-	read_sp(s_frags_per_group);
-	
-	read_sp(s_mtime);
-	read_sp(s_wtime);
 
-	read_sp(s_mnt_count);
-	read_sp(s_max_mnt_count);
+void check_support(superblock *s) {
+	char *feature = NULL;
 
-	read_sp(s_magic);
-	read_sp(s_state);
+	if (1) {
+		// TODO check the values of s_feature_compat, s_feature_incompat
+		// and s_feature_ro_compat to panic and crash
+	}
 
-	read_sp(s_errors);
-	
-	read_sp(s_minor_rev_level);
-	
-	read_sp(s_lastcheck);
-	read_sp(s_checkinterval);
-	read_sp(s_rev_level);
+	if (feature != NULL) {
+		fprintf(stderr, "unsupported feature %.*s",
+				(int) strlen(feature),
+				feature);
+		exit(1);
+	}
+}
 
-	read_sp(s_def_resuif);
-	read_sp(s_def_resgid);
-	
-	// EX2 Dynamic Rev Specific
-	read_sp(s_first_ino);
-	read_sp(s_inode_size);
-	read_sp(s_block_group_nr);
-	
-	read_sp(s_feature_compat);
-	read_sp(s_feature_incompat);
-	read_sp(s_feature_ro_compat);
-	read_sp(s_uuid);
-	read_sp(s_volume_name);
-	
-	skip(64); // skip 64 bit timestamp of last mount
 
-	read_sp(s_algo_bitmap);
+superblock *parse_super(FILE *f) {
+	// read contents of junk
+	superblock *super = malloc(sizeof(superblock)); // malloc and load
+	fread((void *) super, sizeof(superblock), 1, f);
 
-	skip(4); // performance hints I dont care about
+	// correct the endianness of the items in fields
+	check_and_fix_endian(super);
 
-	read_sp(s_journal_uuid);
-	read_sp(s_journal_inum);
-	read_sp(s_journal_dev);
-	read_sp(s_last_orphan);
+	// check verification tricks
+
+	//check if itis usable
+	check_support(super);
+
+	// set fields not set in revision 0 superblock
+	if (super->s_rev_level == 0) {
+		super->s_first_ino = 11;
+		super->s_inode_size = 128;
+	}
+
+	return super;
 }
 
