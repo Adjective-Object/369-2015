@@ -8,6 +8,8 @@
 			strut->field_name );\
 }
 
+extern uint c_block_size;
+
 int main (int argc, char** argv) {
 	if (argc != 2) {
 		printf("Usage is ext_meta <disk_img>\n");
@@ -26,7 +28,7 @@ int main (int argc, char** argv) {
 		pfield(sp, s_first_data_block);
 		printf("\n");
 		pfield(sp, s_log_block_size);
-		pfield(sp, c_block_size);
+		printf("\tactual block size: %d\n", c_block_size);
 		printf("\n");
 		pfield(sp, s_first_ino);
 		pfield(sp, s_inode_size);

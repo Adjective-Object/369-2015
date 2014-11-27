@@ -65,7 +65,8 @@ void check_and_fix_endian(superblock *s) {
 		printf("this system is little endian, do not need to flip byte order\n");
 	} else{
 		printf("this system is big endian, performing swap on superblock\n");
-		fix_endian(s);
+		swap_endian_on_block(s, sizeof(superblock));
+		//fix_endian(s);
 	}
 }
 

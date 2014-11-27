@@ -6,20 +6,22 @@
 #include "ext2.h"
 
 
-descriptor *load_blockgroup(FILE *f, uint location){
+descriptor *load_blockgroup(FILE *f, int location){
 	// read a new superblock and compare it to the root.
 	// if they are not the same, panic and exit
+
+	printf("loading blockgroup at i=%d\n", location);
 
 	// TODO change handling  depending on if we are using revision 0 or 1
 	// version of the ext2 filesystem (revision 1 has less redundancy)
 	
-	superblock *new_super_block = malloc(sizeof(descriptor));	
+	superblock *new_super_block;	
 
 	fseek(f, location, SEEK_SET);
-	fread(new_super_block, sizeof(superblock), 1, f);
+	new_super_block = parse_super(f);
 
 	if (memcmp(superblock_root, new_super_block, sizeof(superblock))) {
-		fprintf(stderr, "superblocks not the same, exiting!");
+		fprintf(stderr, "superblocks not the same, exiting!\n");
 		exit(1);
 	}
 
@@ -28,8 +30,10 @@ descriptor *load_blockgroup(FILE *f, uint location){
 
 	// seek past the superblock and read the block descriptor
 	descriptor *desc = malloc(sizeof(descriptor));
-	fseek(f, location + SUPERBLOCK_SIZE, SEEK_SET);
+	fseek(f, location + c_block_size, SEEK_SET);
 	fread(desc, sizeof(descriptor), 1, f);
+
+	print_hex(new_super_block, sizeof(descriptor));
 
 	return desc;
 }

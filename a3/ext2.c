@@ -3,6 +3,7 @@
 #include "blockgroup.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 void swap_endian_on_field(void *addr, uint32_t size) {
 	int i;
@@ -38,6 +39,8 @@ extern descriptor *blockgroup_list;
 
 extern uint c_num_block_groups;
 extern uint c_block_size;
+extern uint c_bg_size;
+extern bool c_one_bg;
 
 void print_hex(void *bin, size_t size){
 	short *c = bin;
@@ -60,25 +63,36 @@ void init_ext2lib(FILE *f) {
 	// if is little endian, will be
 	// [0001] 0000 0000 0000
 	// not 0000 0000 0000 0001
-	is_little_endian = ! (((short *)&x)[0]);
+	is_little_endian = (((short *)&x)[0]);
 
 	//load the root block;
 	fseek(f, 1024, SEEK_SET); // seek to the beginning of the first superblock
 	superblock_root = parse_super(f);
 
-	print_hex(superblock_root, sizeof(superblock));
+	//print_hex(superblock_root, sizeof(superblock));
 
 	c_block_size = 1024 << (superblock_root->s_log_block_size);
-
+	c_bg_size = c_block_size * superblock_root->s_blocks_per_group;
 
 	//load each blockgroup into the list of blockgroups)
 
 	c_num_block_groups = superblock_root->s_blocks_count /
 		superblock_root->s_blocks_per_group;
+	c_one_bg = (c_num_block_groups == 0);
 
-	pfield(superblock_root,s_blocks_count);
-	pfield(superblock_root,s_blocks_per_group);
-	blockgroup_list = malloc(sizeof(descriptor) * c_num_block_groups);
+	//pfield(superblock_root,s_blocks_count);
+	//pfield(superblock_root,s_blocks_per_group);
 
+	//load the blockgroups in to memory
+	blockgroup_list = malloc(sizeof(descriptor) * 
+			((c_one_bg) ? 1 : (c_num_block_groups)) );
+	fseek(f,1024 + SUPERBLOCK_SIZE, SEEK_SET);
+	
+	int i=0;
+	do {
+		load_blockgroup(f, 1024+i*c_bg_size);
+		i++;
+	} while (i<c_num_block_groups);
 }
+
 

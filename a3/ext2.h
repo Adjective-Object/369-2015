@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <stdio.h>
 
+//helper
+void print_hex(void *bin, size_t size);
+
+
 #define efix(field) \
 	(swap_endian_on_field(\
 		(void *)&(s->field),\
@@ -16,10 +20,10 @@ typedef unsigned __int128 uvlong;
 
 // global endianness tracker
 char is_little_endian;
-void fix_endian_on_block(void* c, uint32_t size);
-void swap_endian_on_field;
+void swap_endian_on_block(void* c, uint size);
+void swap_endian_on_field(void *c, uint size);
 
 // function to init the ext2lib
-void init_ex2lib(FILE *f);
+void init_ext2lib(FILE *f);
 
 #endif

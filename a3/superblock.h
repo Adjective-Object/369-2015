@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "ext2.h"
 
 /*******************************/
@@ -108,6 +109,9 @@ superblock *parse_super(FILE *f);
 superblock *superblock_root;
 uint c_block_size;
 uint c_num_block_groups;
+uint c_bg_size;
+bool c_one_bg;
+
 
 #endif
 

@@ -17,7 +17,7 @@ ext2_cp: ext2_cp.o ext2.o
 
 debugtools: ext2_meta ext2_inspect
 
-ext2_meta: ext2_meta.o superblock.o ext2.o
+ext2_meta: ext2_meta.o blockgroup.o superblock.o ext2.o
 	gcc -Wall -g $^ -o ext2_meta
 
 ext2_inspect: ext2_inspect.o blockgroup.o superblock.o ext2.o
@@ -28,3 +28,6 @@ ext2_inspect: ext2_inspect.o blockgroup.o superblock.o ext2.o
 
 %.o: %.c
 	gcc -Wall -g -c $<
+	
+clean:
+	rm -f *.o

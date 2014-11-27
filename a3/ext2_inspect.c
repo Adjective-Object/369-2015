@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "superblock.h"
 #include "blockgroup.h"
 #include "ext2.h"
@@ -7,6 +8,7 @@
 extern superblock *superblock_root;
 extern descriptor *blockgroup_list;
 
+extern bool c_one_bg;
 extern uint c_block_size;
 extern uint c_num_block_groups;
 
@@ -28,7 +30,10 @@ void inspect_bitmap(FILE *f, char*formatstring){
 
 void inspect_block(descriptor *bgl, FILE *f, int index) {	
 	descriptor * bg = bgl+index;
-	
+	printf("bgl=%x, bg=%x\n", bgl, bg);
+
+	printf("inspecting block %d\n", index);
+
 	pfield(bg, bg_block_bitmap);
 	pfield(bg, bg_inode_bitmap);
 	pfield(bg, bg_inode_table);
@@ -45,21 +50,24 @@ void inspect_block(descriptor *bgl, FILE *f, int index) {
 
 void inspect_blocks(descriptor *bgl, FILE *f) {
 	int i;
-	printf("number of block groups: %d\n", c_num_block_groups);
-	for(i=0; i<c_num_block_groups; i++) {
-		inspect_block(bgl, f, i);
+	if (!c_one_bg) {
+		printf("number of block groups: %d\n", c_num_block_groups);
+		for(i=0; i<c_num_block_groups; i++) {
+			inspect_block(bgl, f, i);
+		}
+	} else {
+		printf("only one block\n");
+		inspect_block(bgl, f, 0);
 	}
 }	
 
 int main (int argc, char** argv) {
 	if (argc != 2) {
-		printf("Usage is ext_meta <disk_img>\n");
+		printf("Usage is ext2_inspect <disk_img>\n");
 		return 1;
 	} else {
 		FILE *f = fopen(argv[1], "r");
 		init_ext2lib(f);
-
-		// inspect used blocks and stuff
 		inspect_blocks(blockgroup_list, f);
 	}
 	return 0;
