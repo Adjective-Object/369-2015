@@ -90,7 +90,7 @@ void init_ext2lib(FILE *f) {
 	
 	int i=0;
 	do {
-		load_blockgroup(f, 1024+i*c_bg_size);
+		load_blockgroup(blockgroup_list + i, f, 1024+i*c_bg_size);
 		i++;
 	} while (i<c_num_block_groups);
 }

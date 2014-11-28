@@ -34,6 +34,6 @@ descriptor *blockgroup_list;
 // loads a block group starting from the current location of the file.
 // checks the superblock loaded against superblock_root, the fist superblock
 // seen. If they are differnet, panic and fail
-descriptor *load_blockgroup(FILE *f, int location);
+void load_blockgroup(descriptor *dest, FILE *f, int location);
 
 #endif

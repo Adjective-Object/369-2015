@@ -6,7 +6,7 @@
 #include "ext2.h"
 
 
-descriptor *load_blockgroup(FILE *f, int location){
+void load_blockgroup(descriptor *dest, FILE *f, int location){
 	// read a new superblock and compare it to the root.
 	// if they are not the same, panic and exit
 
@@ -27,13 +27,7 @@ descriptor *load_blockgroup(FILE *f, int location){
 
 	free(new_super_block);
 
-
 	// seek past the superblock and read the block descriptor
-	descriptor *desc = malloc(sizeof(descriptor));
 	fseek(f, location + c_block_size, SEEK_SET);
-	fread(desc, sizeof(descriptor), 1, f);
-
-	print_hex(new_super_block, sizeof(descriptor));
-
-	return desc;
+	fread(dest, sizeof(descriptor), 1, f);
 }
