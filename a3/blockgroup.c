@@ -31,3 +31,67 @@ void load_blockgroup(descriptor *dest, FILE *f, int location){
 	fseek(f, location + c_block_size, SEEK_SET);
 	fread(dest, sizeof(descriptor), 1, f);
 }
+
+int inode_numblocks(inode *ino){
+	return ino->i_blocks / (c_block_size / 512);
+}
+
+// returns 0 if there are no more blocks, else returns address of thhe
+// block on the disk
+int inode_seek_nth_block(FILE *f, inode *i, int n) {
+	if (n<12) {
+		// direct link
+		if (i->i_block[n]) {
+			int addr = block_addr(i->i_block[n]);
+			printf("address: %d\n", addr);
+			fseek(f, addr, SEEK_SET);	
+			return addr;
+		} else {
+			return 0;
+		}
+	}
+	else {
+		// indirect block
+		fprintf(stderr, "can't cope with indirect blocks\n");
+		exit(1);
+	}
+}
+
+inode *load_inode(FILE *f){
+	//copy that indoe into memory
+	inode *new_inode = malloc(
+			superblock_root->s_inode_size * sizeof(char));
+	fread(new_inode, sizeof(char), superblock_root->s_inode_size, f);
+	return new_inode;
+}
+
+
+
+
+
+directory *load_dir(void *f){
+	void *head = f;
+	directory *dir = NULL, pdir = NULL;
+
+	do {
+		dir = malloc(sizeof(directory));
+		memcpy(dir, head, malloc(sizeof(directory) - 2* sizeof(char*))
+		dir->name = malloc(sizeof(char) * name_len);
+		dir->next = NULL;
+		
+		if (pdir != NULL)
+			pdir->next = dir;
+		pdir = dir;
+
+	} while (*((uint *) dir) != 0);
+}
+
+
+
+
+
+
+
+int block_addr(int blockaddr){
+	return 1024 + c_block_size * (blockaddr - 1);
+}

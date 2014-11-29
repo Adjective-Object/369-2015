@@ -6,15 +6,6 @@
 #include "superblock.h"
 #include "ext2.h"
 
-#define pfields(strut, field_name) {\
-	printf("\t" #field_name ": %hu\n",\
-			strut->field_name );\
-}
-
-#define pfield(strut, field_name) {\
-	printf("\t" #field_name ": %u\n",\
-			strut->field_name );\
-}
 
 struct descriptor {
 	uint   bg_block_bitmap;         // blockID of the data bitmap
@@ -28,6 +19,7 @@ struct descriptor {
 
 typedef struct descriptor descriptor;
 
+
 // list of block group descriptors, initialized by init_ext2lib;
 descriptor *blockgroup_list;
 
@@ -35,5 +27,66 @@ descriptor *blockgroup_list;
 // checks the superblock loaded against superblock_root, the fist superblock
 // seen. If they are differnet, panic and fail
 void load_blockgroup(descriptor *dest, FILE *f, int location);
+
+
+
+#define INODE_MODE_DIRECTORY 0x4000
+#define INODE_MODE_FILE 0x8000
+
+struct inode {
+	ushort i_mode; // see http://www.nongnu.org/ext2-doc/ext2.html#I-MODE
+	ushort i_uid;  // user id
+	
+	uint   i_size; // size of file
+	uint   i_atime; // unix timestamp, access
+	uint   i_ctime; //                 creation
+	uint   i_mtime; //                 modification
+	uint   i_dtime; //                 deletion
+	
+	ushort i_gud; // group id
+	ushort i_links_count; // number of hard links to inode
+	
+	uint   i_blocks; // number of 512 byte blocks used on this file
+	uint   i_flags; // http://www.nongnu.org/ext2-doc/ext2.html#I-FLAGS
+	uint   i_osd1; // ignore
+
+	char   i_block[60]; // the array of blocks used
+	
+	uint   i_generation;
+	uint   i_file_generation;
+	uint   i_file_acl;
+	uint   i_dir_acl;
+	uint   i_faddr;
+
+	char   i_osd2[12];
+
+} __attribute__((packed));
+typedef struct inode inode;
+
+// inode helpers
+inode *load_inode(FILE *f);
+int inode_numblocks(inode *ino);
+int inode_seek_nth_block(FILE *f, inode *i, int n);
+
+
+
+
+
+// Directory Fun
+struct directory {
+	uint d_inode_num;
+	uint d_rec_len;
+	char name_len;
+	char filt_type;
+	char *name;
+	char *next;
+} __attribute__((packed))
+typedef struct directory directory;
+
+// Directory Helpers
+dir_load(FILE *f);
+
+// etc
+int block_addr(int blocknumber);
 
 #endif

@@ -79,9 +79,8 @@ uvlong s_volume_name;        // name of the filesystem, ISO-Latin-1, \0 term'd
 
 //uvlong s_last_mounted
     // we don't care about this field at all, so we'll skip it
-    // just remember that it is 64 byes wide, so we need to fseek past it
-
 char padding_s_last_mounted[64];
+
 uint   s_algo_bitmap;        // compression algorithms used
 
 // Performance hits (prealoc blocks)
