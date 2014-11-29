@@ -50,4 +50,7 @@ void swap_endian_on_field(void *c, uint size);
 // function to init the ext2lib
 void init_ext2lib(FILE *f);
 
+// peek
+uint file_peek(FILE *f);
+
 #endif

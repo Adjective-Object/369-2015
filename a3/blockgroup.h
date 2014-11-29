@@ -64,27 +64,30 @@ struct inode {
 typedef struct inode inode;
 
 // inode helpers
-inode *load_inode(FILE *f);
+inode *load_inode(FILE *f, int inode);
 int inode_numblocks(inode *ino);
 int inode_seek_nth_block(FILE *f, inode *i, int n);
-
+void *aggregate_file(FILE *f, inode *i);
 
 
 
 
 // Directory Fun
-struct directory {
-	uint d_inode_num;
-	uint d_rec_len;
-	char name_len;
-	char filt_type;
-	char *name;
-	char *next;
-} __attribute__((packed))
-typedef struct directory directory;
+struct directory_node {
+	uint   d_inode_num;
+	ushort d_rec_len;
+	char   name_len;
+	char   filt_type;
+	char   name[255];
+} __attribute__((packed));
+typedef struct directory_node directory_node;
 
 // Directory Helpers
-dir_load(FILE *f);
+directory_node *next_node(directory_node *d);
+
+
+size_t d_node;
+
 
 // etc
 int block_addr(int blocknumber);

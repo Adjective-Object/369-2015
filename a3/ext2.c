@@ -96,3 +96,16 @@ void init_ext2lib(FILE *f) {
 }
 
 
+
+size_t d_node = 
+    sizeof(directory_node) 
+        - sizeof(char) * 255; 
+
+uint file_peek(FILE *f){ 
+    int p;
+    fread(&p, sizeof(int), 1, f);
+    
+    fseek(f,-1, SEEK_CUR);
+    return p;
+}
+

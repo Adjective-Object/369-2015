@@ -43,7 +43,6 @@ int inode_seek_nth_block(FILE *f, inode *i, int n) {
 		// direct link
 		if (i->i_block[n]) {
 			int addr = block_addr(i->i_block[n]);
-			printf("address: %d\n", addr);
 			fseek(f, addr, SEEK_SET);	
 			return addr;
 		} else {
@@ -51,41 +50,55 @@ int inode_seek_nth_block(FILE *f, inode *i, int n) {
 		}
 	}
 	else {
-		// indirect block
-		fprintf(stderr, "can't cope with indirect blocks\n");
-		exit(1);
+		// indirect link
+		if (i->i_block[n]) {
+		    fprintf(stderr, "can't cope with indirect blocks\n");
+	    	exit(1);
+        } else{
+            return 0;
+        }
 	}
 }
 
-inode *load_inode(FILE *f){
-	//copy that indoe into memory
+inode *load_inode(FILE *f, int ino){
+	// fseek to location
+    // we only ever have one group block so always seek
+    // to the bg_inode_bitmap of the root bg.
+    fseek(f, 
+            block_addr(blockgroup_list->bg_inode_table) + 
+            (ino-1) * superblock_root->s_inode_size,
+			SEEK_SET);
+
+    //copy that indoe into memory
 	inode *new_inode = malloc(
 			superblock_root->s_inode_size * sizeof(char));
 	fread(new_inode, sizeof(char), superblock_root->s_inode_size, f);
-	return new_inode;
+   
+    return new_inode;
+
 }
 
 
 
+//aggregates the different disk blocks of an inode
+//into a single buffer
+void *aggregate_file(FILE *f, inode *i){ 
+	int index = 0, x;
+	char *dirbuf = malloc(sizeof(char) * inode_numblocks(i) * c_block_size);
+	for(x=0; x<15; x++) {
+        if (inode_seek_nth_block(f, i, x )){
+		    fread(dirbuf + (c_block_size * index), 
+		    		sizeof(char), c_block_size, f);
+            index++;
+        }
+    }
+    return (void *)dirbuf;
 
-
-directory *load_dir(void *f){
-	void *head = f;
-	directory *dir = NULL, pdir = NULL;
-
-	do {
-		dir = malloc(sizeof(directory));
-		memcpy(dir, head, malloc(sizeof(directory) - 2* sizeof(char*))
-		dir->name = malloc(sizeof(char) * name_len);
-		dir->next = NULL;
-		
-		if (pdir != NULL)
-			pdir->next = dir;
-		pdir = dir;
-
-	} while (*((uint *) dir) != 0);
 }
 
+directory_node *next_node(directory_node *d){
+    return (directory_node *) ( ((char *)d) + d->d_rec_len);
+}
 
 
 

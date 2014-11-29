@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include "superblock.h"
 #include "blockgroup.h"
 #include "ext2.h"
@@ -14,35 +15,41 @@ extern uint c_num_block_groups;
 
 
 void inspect_directory(FILE *f, inode *i) {
-	printf("inspecting directory %d\n", i->i_uid); 
-	
 	int x;
-	printf("used disk blocks: ");
-	for (x=0; x<15; x++) {
+	printf("used blocks: ");
+    for (x=0; x<15; x++) {
 		printf("%d ", i->i_block[x] );
 	} printf("\n");
 	
-	int index = 0;
-	char *dirbuf = malloc(sizeof(char) * inode_numblocks(i) * c_block_size);
-	while (inode_seek_nth_block(f, i, index )){
-		fread(dirbuf + (c_block_size * index), 
-				sizeof(char), c_block_size, f);
-		index++;
-	}
-	printf("directory contents size: %d\n", c_block_size * index);
-	print_hex(dirbuf, sizeof(char) * inode_numblocks(i) * c_block_size);
+    directory_node *d = aggregate_file(f, i);
+    directory_node *first_d = d;
+
+    while (d->d_inode_num != 0){
+        printf("%d:\t", d->name_len);
+        printf(d->name);
+        d = next_node(d);
+        printf("\n");
+    }
+
+    d = first_d; 
+    while (d->d_inode_num != 0) {
+	    if (d->name[0] != '.'){
+            printf("going into subdirectory %.*s\n", d->name_len, d->name);
+	        
+            inode *sub_inode = load_inode(f, d->d_inode_num);
+            inspect_directory(1, sub_inode);
+        }
+
+        d = next_node(d);
+    }
 }
 
-void inspect_inode(FILE *f, int inode_table_offset, int ino) {
+void inspect_inode(FILE *f, int ino) {
 	//load inode into memory
-	printf("offset=%d, number=%d, inode_size=%d\n",
-			inode_table_offset, ino, superblock_root -> s_inode_size);
+	printf("number=%d, inode_size=%d\n",
+			ino, superblock_root -> s_inode_size);
 	
-	fseek(f, inode_table_offset + (ino-1) * superblock_root->s_inode_size,
-			 SEEK_SET);
-	inode *cur_inode = load_inode(f);
-
-	print_hex(cur_inode, sizeof(inode));
+	inode *cur_inode = load_inode(f,ino);
 
 	// print what type it is
 	pfields(cur_inode, i_uid);
@@ -67,6 +74,7 @@ void inspect_inode(FILE *f, int inode_table_offset, int ino) {
 
 void inspect_bitmap(FILE *f) {
     int i, x;
+    
 	char *bitmap = malloc(sizeof(char) * c_block_size);
 	unsigned char  mask;
 	fread(bitmap, sizeof(char), c_block_size, f);
@@ -97,11 +105,11 @@ void print_num(int ino){
 	printf("%d, ", ino);
 }
 
-void inspect_block(descriptor *bgl, FILE *f, int index) {	
+void inspect_blockgroup(descriptor *bgl, FILE *f, int index) {	
 	descriptor * bg = bgl+index;
 	printf("bgl=%p, bg=%p\n", bgl, bg);
 
-	printf("inspecting block %d\n", index);
+	printf("inspecting block group %d\n", index);
 
 	pfield(bg, bg_block_bitmap);
 	pfield(bg, bg_inode_bitmap);
@@ -118,8 +126,9 @@ void inspect_block(descriptor *bgl, FILE *f, int index) {
 	inspect_bitmap(f);
 
 	printf("\n");
+    // c
 	// inspect the root inode
-	inspect_inode(f, block_addr(bg->bg_inode_table), 2);
+	inspect_inode(f, 2);
 }
 
 void inspect_blocks(descriptor *bgl, FILE *f) {
@@ -127,11 +136,11 @@ void inspect_blocks(descriptor *bgl, FILE *f) {
 	if (!c_one_bg) {
 		printf("number of block groups: %d\n", c_num_block_groups);
 		for(i=0; i<c_num_block_groups; i++) {
-			inspect_block(bgl, f, i);
+			inspect_blockgroup(bgl, f, i);
 		}
 	} else {
-		printf("only one block\n");
-		inspect_block(bgl, f, 0);
+		printf("only one block group\n");
+		inspect_blockgroup(bgl, f, 0);
 	}
 }	
 
