@@ -1,6 +1,6 @@
-all: debugtools # assignment
+all: debugtools  assignment
 
-assignment: ext2_cp ext2_mkdir ext2_ln ext2_rm
+assignment: ext2_cp # ext2_mkdir ext2_ln ext2_rm
 
 ext2_rm: ext2_rm.o ext2.o
 	gcc -Wall -g $^ -o ext2_rm
@@ -11,7 +11,7 @@ ext2_ln: ext2_ln.o ext2.o
 ext2_mkdir: ext2_mkdir.o ext2.o
 	gcc -Wall -g $^ -o ext2_mkdir
 
-ext2_cp: ext2_cp.o ext2.o
+ext2_cp: ext2_cp.o ext2.o blockgroup.o superblock.o
 	gcc -Wall -g $^ -o ext2_cp
 
 

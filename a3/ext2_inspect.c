@@ -2,17 +2,17 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdbool.h>
 #include "superblock.h"
 #include "blockgroup.h"
 #include "ext2.h"
 
 extern superblock *superblock_root;
-extern descriptor *blockgroup_list;
+extern blockgroup  *blockgroup_list;
 
 extern bool c_one_bg;
 extern uint c_block_size;
 extern uint c_num_block_groups;
-
 
 void inspect_directory(FILE *f, inode *i) {
 	int x;
@@ -26,7 +26,7 @@ void inspect_directory(FILE *f, inode *i) {
 
     while (d->d_inode_num != 0){
         printf("%d:\t", d->name_len);
-        printf(d->name);
+        printf("%.*s", (int) strlen(d->name), d->name);
         d = next_node(d);
         printf("\n");
     }
@@ -34,10 +34,14 @@ void inspect_directory(FILE *f, inode *i) {
     d = first_d; 
     while (d->d_inode_num != 0) {
 	    if (d->name[0] != '.'){
-            printf("going into subdirectory %.*s\n", d->name_len, d->name);
 	        
             inode *sub_inode = load_inode(f, d->d_inode_num);
-            inspect_directory(1, sub_inode);
+			ushort ftype = ((sub_inode->i_mode) & 0xF000);
+			if (ftype == INODE_MODE_DIRECTORY) {
+				printf("going into subdirectory %.*s\n", d->name_len, d->name);
+				inspect_directory(f, sub_inode);
+			}
+			
         }
 
         d = next_node(d);
@@ -72,58 +76,55 @@ void inspect_inode(FILE *f, int ino) {
 
 }
 
-void inspect_bitmap(FILE *f) {
-    int i, x;
-    
-	char *bitmap = malloc(sizeof(char) * c_block_size);
-	unsigned char  mask;
-	fread(bitmap, sizeof(char), c_block_size, f);
+void inspect_bitmap(char *bitmap) {
+    int i; 
 
-	swap_endian_on_block(bitmap, sizeof(char) * c_block_size);
-
-	printf("inodes in use: ");
-	for (i=0 ; i<c_block_size; i++) {
-		mask=128;
-        for (x=0; x<8; x++) {
-            if (!(bitmap[i] & mask)) {
-				printf("%d, ", i*8 + x);
-				/* debug print for matching mask properly.
-				printf("\n%d\t(" BYTE2BIN_PAT ", " BYTE2BIN_PAT ", %d)",
-						(i*8 + x), 
-						BYTE2BIN(bitmap[i]),
-						BYTE2BIN(mask),
-						mask);
-				*/
-			}
-            mask = mask / 2;
+	printf("in use: ");
+	for (i=0 ; i<c_block_size * 8; i++) {
+		if (! is_bitmap_free(i, bitmap)) {		
+			printf("%d, ", i);
+			/*
+			printf("\n i=%d, n=%d\t, value=%02hx (" 
+					BYTE2BIN_PAT ", " BYTE2BIN_PAT ", %d)",
+					i,
+					(i*8 + x), 
+					(bitmap[i]),
+					BYTE2BIN(bitmap[i]),
+					BYTE2BIN(mask),
+					mask);*/
 		}
 	}
-	printf("\b\b\n");
+	printf("\n");
 }
 
 void print_num(int ino){
 	printf("%d, ", ino);
 }
 
-void inspect_blockgroup(descriptor *bgl, FILE *f, int index) {	
-	descriptor * bg = bgl+index;
+void inspect_blockgroup(blockgroup *bgl, FILE *f, int index) {	
+	blockgroup * bg = bgl+index;
 	printf("bgl=%p, bg=%p\n", bgl, bg);
 
 	printf("inspecting block group %d\n", index);
 
-	pfield(bg, bg_block_bitmap);
-	pfield(bg, bg_inode_bitmap);
-	pfield(bg, bg_inode_table);
+	descriptor *d = &(bg->desc);
+
+	pfield(d, bg_block_bitmap);
+	pfield(d, bg_inode_bitmap);
+	pfield(d, bg_inode_table);
 	printf("\n");
 
-	pfields(bg, bg_free_blocks_cont);
-	pfields(bg, bg_free_inodes_cont);
-	pfields(bg, bg_used_dirs_cont);
+	pfields(d, bg_free_blocks_cont);
+	pfields(d, bg_free_inodes_cont);
+	pfields(d, bg_used_dirs_cont);
 
 	printf("\n");
 	// check out the inode bitmap
-	fseek(f, (block_addr(bg->bg_inode_bitmap)), SEEK_SET);
-	inspect_bitmap(f);
+	printf("inodes ");
+	inspect_bitmap(bg->inode_bitmap);
+	// and the data bitmap
+	printf("data blocks ");
+	inspect_bitmap(bg->block_bitmap);
 
 	printf("\n");
     // c
@@ -131,7 +132,7 @@ void inspect_blockgroup(descriptor *bgl, FILE *f, int index) {
 	inspect_inode(f, 2);
 }
 
-void inspect_blocks(descriptor *bgl, FILE *f) {
+void inspect_blocks(blockgroup *bgl, FILE *f) {
 	int i;
 	if (!c_one_bg) {
 		printf("number of block groups: %d\n", c_num_block_groups);

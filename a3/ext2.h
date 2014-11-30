@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 
-//helper
-void print_hex(void *bin, size_t size);
+//macros
 
 #define pfields(strut, field_name) {\
 	printf("\t" #field_name ": %hu\n",\
@@ -21,7 +21,6 @@ void print_hex(void *bin, size_t size);
 	(swap_endian_on_field(\
 		(void *)&(s->field),\
 		sizeof( ((superblock *) NULL)->field) )) ;
-
 
 // from William Whyte on StackOverflow
 // http://stackoverflow.com/questions/111928/is-there-a-printf-converter-to-print-in-binary-format
@@ -42,6 +41,21 @@ typedef uint32_t uint;
 typedef uint16_t ushort;
 typedef unsigned __int128 uvlong;
 
+
+// general purpose helpers
+void print_hex(void *bin, size_t size);
+uint file_peek(FILE *f);
+
+// path writing
+// in path is a pointer to a substring. from path is a new string;
+char *get_last_in_path(char *path);
+char *pop_last_from_path(char *path);
+char *get_next_in_path(char *path);
+char *pop_first_from_path(char *path);
+
+// disk interface helpers
+FILE f_global;
+
 // global endianness tracker
 char is_little_endian;
 void swap_endian_on_block(void* c, uint size);
@@ -49,8 +63,7 @@ void swap_endian_on_field(void *c, uint size);
 
 // function to init the ext2lib
 void init_ext2lib(FILE *f);
-
-// peek
-uint file_peek(FILE *f);
+// function to write changes to data back onto disk
+void update_image(FILE *f);
 
 #endif

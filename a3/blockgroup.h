@@ -16,17 +16,25 @@ struct descriptor {
 	ushort bg_free_inodes_cont;     // # of free inodes
 	ushort bg_used_dirs_cont;       // # inodes used for directories
 } __attribute__((packed));
-
 typedef struct descriptor descriptor;
 
+struct blockgroup {
+	descriptor desc;
+	char *block_bitmap;
+	char *inode_bitmap;
+	struct inode *inode_table;
+};
+typedef struct blockgroup blockgroup;
 
 // list of block group descriptors, initialized by init_ext2lib;
-descriptor *blockgroup_list;
+blockgroup *blockgroup_list;
+uint allocate_data_block();
+bool is_bitmap_free(int i, char* bitmap);
 
 // loads a block group starting from the current location of the file.
 // checks the superblock loaded against superblock_root, the fist superblock
-// seen. If they are differnet, panic and fail
-void load_blockgroup(descriptor *dest, FILE *f, int location);
+// seen. If they are different, panic and fail
+void load_blockgroup(blockgroup *dest, FILE *f, int location);
 
 
 
@@ -67,10 +75,15 @@ typedef struct inode inode;
 inode *load_inode(FILE *f, int inode);
 int inode_numblocks(inode *ino);
 int inode_seek_nth_block(FILE *f, inode *i, int n);
+int inode_type(inode *i);
 void *aggregate_file(FILE *f, inode *i);
 
-
-
+inode *get_inode_for(FILE *f, char *path);
+inode *inode_get_child(FILE *f, inode* current, char *name);
+inode *make_inode(int size);
+inode *make_file_inode(int size_bytes);
+inode *allocate_inode();
+bool is_inode_free(int inode);
 
 // Directory Fun
 struct directory_node {
@@ -84,12 +97,13 @@ typedef struct directory_node directory_node;
 
 // Directory Helpers
 directory_node *next_node(directory_node *d);
-
+void make_hardlink(FILE *f, char *name, inode *dir, inode *file);
 
 size_t d_node;
 
 
 // etc
 int block_addr(int blocknumber);
+int fsize_blocks(int fsize);
 
 #endif
