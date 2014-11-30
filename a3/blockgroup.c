@@ -201,17 +201,17 @@ void set_bitmap_used(int i, char *bitmap, bool val) {
 
 // find an inode from blockgroup_list and mark it as used
 // returns a pointer to the inode
-inode *allocate_inode() {
+uint allocate_inode() {
 	//TODO make this work for multiple blocks instead of just the first
 	char *ibm = blockgroup_list->inode_bitmap;
 	int i;
 	for (i=0; i<c_block_size; i++){
 		if(is_bitmap_free(i,ibm)) {
 			set_bitmap_used(i, ibm, true);
-			return (blockgroup_list->inode_table) + i;
+			return i;
 		}
 	}
-	return NULL;
+	return 0;
 }
 
 // find a data block in blockgroup_list and mark it as used
@@ -230,11 +230,12 @@ uint allocate_data_block() {
 }
 
 // inode creation
-inode *make_inode(int fsize) {
+int make_inode(int fsize) {
 	int fblocks = fsize_blocks(fsize);
 
 	// find empty inode in datablock list and allocate it
-	inode *new_node = allocate_inode();
+	uint new_ino = allocate_inode();
+	inode *new_node = get_inode(new_ino);
 	if(new_node == NULL) {
 		fprintf(stderr, "could not allocate new inode, no space left\n");
 		exit(1);
@@ -254,15 +255,23 @@ inode *make_inode(int fsize) {
 			fprintf(stderr, "could not allocate new data block, no space left\n");
 			exit(1);
 		}
+		new_node->i_block[i] = block;
 	}
+	// set the remaining blocks to 0
+	memset( &(new_node->i_block[i+1]), 0, 15-i);
 
-	return new_node;
+	return new_ino;
 }
 
-inode *make_file_inode(int fsize) {
-	inode *i = make_inode(fsize);
+inode *get_inode(int ino) {
+	return &(blockgroup_list->inode_table[ino]);
+}
+
+int make_file_inode(int fsize) {
+	int ino = make_inode(fsize);
+	inode *i = get_inode(ino);
 	i->i_mode = INODE_MODE_FILE;
-	return i;
+	return ino;
 }
 
 
@@ -270,30 +279,31 @@ directory_node *next_node(directory_node *d){
     return (directory_node *) ( ((char *)d) + d->d_rec_len);
 }
 
-void make_hardlink(FILE *f, char *name, inode *dir, inode *file) {
+void make_hardlink(FILE *f, char *name, inode *dir, uint file_ino) {
 
 	//aggregate the file, get the pointer to the padding 
 	directory_node *dir_head = aggregate_file(f, dir);
-	directory_node *padding = file_head;
+	directory_node *padding = dir_head;
 	while(padding->d_inode_num != 0)
 		padding = next_node(padding);
 
+
+	ushort required_size = 8 + (int)(d_node + strlen(name));
 	// if there is not enough room in the file, allocate a new buffer for it
-	int required_size = (int)(d_node + strlen(name));
-	if (d->name_len < required_size) {
+	if (padding->d_rec_len - 8 < required_size) {
 		// malloc an appropriately sized buffer
 		size_t size_buffer = sizeof(char)
 							* c_block_size 
 							* (dir->i_blocks*(512/c_block_size));
-		char *new_node = malloc(size_buffer + c_block_size * sizeof(char));
+		directory_node *new_buffer = malloc(size_buffer + c_block_size * sizeof(char));
 		
 		// copy over to the appropriate buffer
-		memcpy(new_node, dir_head, size_biffer);	
+		memcpy(new_buffer, dir_head, size_buffer);	
 		free(dir_head);
 
 		// reassign file_head and new_node
-		dir_head = new_node;
-		int padding_diff = (intptr_t) padding - (intptr_t) dir_head);
+		dir_head = new_buffer;
+		int padding_diff = (intptr_t) padding - (intptr_t) dir_head;
 		padding = dir_head + padding_diff;
 	
 		//add a new block to the inode
@@ -302,9 +312,30 @@ void make_hardlink(FILE *f, char *name, inode *dir, inode *file) {
 	}
 
 	
-	// create a new directory node from the padding,
-	// and update the padding node at the end of the directory.
-	
+	// move the node at the head of the padding forward
+	// and put the new directory node in its place
+	directory_node *newpadding = (directory_node *)(((char *)padding) + required_size);
+	memcpy(newpadding, padding, required_size);
+	newpadding->d_rec_len = newpadding->d_rec_len - required_size;
+
+	// get the right file type for the directory entry
+	inode *file_inode = get_inode(file_ino);
+	ushort ftype;
+	switch (inode_type(file_inode)) {
+		case INODE_MODE_FILE:
+			ftype = 1;
+			break;
+		case INODE_MODE_DIRECTORY:
+			ftype = 2;
+			break;
+		default:
+			ftype = 0;
+	}
+	// assign the values for the new directory entry
+	padding->d_inode_num = file_ino;
+	padding->d_rec_len = required_size;
+	padding->name_len = (ushort) strlen(name);
+	padding->filt_type = ftype;
 
 	// dump the modified directory file back to the disk
 	dump_file_to_disk(f, dir, dir_head);

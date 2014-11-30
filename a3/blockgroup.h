@@ -58,7 +58,7 @@ struct inode {
 	uint   i_flags; // http://www.nongnu.org/ext2-doc/ext2.html#I-FLAGS
 	uint   i_osd1; // ignore
 
-	char   i_block[60]; // the array of blocks used
+	uint   i_block[15]; // the array of blocks used
 	
 	uint   i_generation;
 	uint   i_file_generation;
@@ -80,9 +80,10 @@ void *aggregate_file(FILE *f, inode *i);
 
 inode *get_inode_for(FILE *f, char *path);
 inode *inode_get_child(FILE *f, inode* current, char *name);
-inode *make_inode(int size);
-inode *make_file_inode(int size_bytes);
-inode *allocate_inode();
+inode *get_inode(int ino);
+int make_inode(int size);
+int make_file_inode(int size_bytes);
+uint allocate_inode();
 bool is_inode_free(int inode);
 
 // Directory Fun
@@ -97,7 +98,7 @@ typedef struct directory_node directory_node;
 
 // Directory Helpers
 directory_node *next_node(directory_node *d);
-void make_hardlink(FILE *f, char *name, inode *dir, inode *file);
+void make_hardlink(FILE *f, char *name, inode *dir, uint file_ino);
 
 size_t d_node;
 
