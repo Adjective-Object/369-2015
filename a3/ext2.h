@@ -62,7 +62,10 @@ void swap_endian_on_block(void* c, uint size);
 void swap_endian_on_field(void *c, uint size);
 
 // function to init the ext2lib
+char *ext2_map_start;
 void init_ext2lib(FILE *f);
+void teardown_ext2lib();
+
 // function to write changes to data back onto disk
 void update_image(FILE *f);
 

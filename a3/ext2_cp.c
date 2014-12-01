@@ -7,9 +7,9 @@
 #include "blockgroup.h"
 #include "ext2.h"
 
-extern uint c_block_size;
+extern size_t c_block_size;
 
-void cp_to_dir(FILE *input, FILE *img,  char *name, inode *dest){
+void cp_to_dir(FILE *input,  char *name, inode *dest){
 	//get the size of the file
 	fseek(input, 0, SEEK_END);
 	int i, fsize = ftell(input);
@@ -18,7 +18,7 @@ void cp_to_dir(FILE *input, FILE *img,  char *name, inode *dest){
 	char *buffer = malloc(sizeof(char) *c_block_size);
 
 	// find a new inode and allocate to it the blocks for a new file
-	inode *new_inode = make_file_inode(fsize);
+	int new_inode = make_file_inode(fsize);
 
 	// read the file in one block at a time and copy it in
 	fseek(input, 0, SEEK_SET);
@@ -27,18 +27,15 @@ void cp_to_dir(FILE *input, FILE *img,  char *name, inode *dest){
 		
 		// seek to the proper data block and write it
 		// TODO fix nth block to handle files that use indirect nodes
-		inode_seek_nth_block(img, new_inode, i);
-		fwrite(buffer, sizeof(char), c_block_size, img);
+		void * block = inode_nth_block_ptr(get_inode(new_inode), i);
+		memcpy(block, buffer, c_block_size);
 	}
 
-	make_hardlink(img, name, dest, new_inode);
-
-	// update the image to changes in the inode table, bitmaps, superblock
-	update_image(img);
+	make_hardlink(name, dest, new_inode);
 }
 
 int main(int argc, char ** argv) {
-	if (argc != 3){
+	if (argc != 4){
 		fprintf(stderr, 
 				"Usage is ext2_cp <image> <file> <path_to_destination>\n");
 		return 1;
@@ -60,18 +57,25 @@ int main(int argc, char ** argv) {
 				argv[2]);
 		return 1;
 	}
+	
+	printf("img: %.*s \n", (int)strlen(argv[1]), argv[1]);
+	printf("file: %.*s \n", (int)strlen(argv[2]), argv[2]);
+
+	init_ext2lib(img);
 
 	// find the destination directory and name
-	inode *dest = get_inode_for(img ,argv[3]);
+	inode *dest = get_inode_for(argv[3]);
 	char *name = get_last_in_path(argv[3]);
 	
 	if (dest == NULL || inode_type(dest) != INODE_MODE_DIRECTORY) {
-		dest = get_inode_for(img, pop_last_from_path(argv[3]) );
+		dest = get_inode_for(pop_last_from_path(argv[3]) );
 		name = get_last_in_path(argv[2]);
 	}
 
 	// insert with proper name into the directory
-	cp_to_dir(fil, img, name, dest);
-	
+	cp_to_dir(fil,  name, dest);
+
+	teardown_ext2lib();
+
 	return 0;
 }

@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
+#include <sys/mman.h>
+
 
 void swap_endian_on_field(void *addr, uint32_t size) {
 	int i;
@@ -40,7 +42,7 @@ extern char is_little_endian;
 extern blockgroup *blockgroup_list;
 
 extern uint c_num_block_groups;
-extern uint c_block_size;
+extern size_t c_block_size;
 extern uint c_bg_size;
 extern bool c_one_bg;
 
@@ -58,6 +60,8 @@ void print_hex(void *bin, size_t size){
 	printf("\n");
 }
 
+extern char *ext2_map_start;
+
 void init_ext2lib(FILE *f) { 
 	//init endianness
 	unsigned int x = 1;
@@ -67,9 +71,20 @@ void init_ext2lib(FILE *f) {
 	// not 0000 0000 0000 0001
 	is_little_endian = (((short *)&x)[0]);
 
+	fseek(f,0,SEEK_END);
+	int fsize = ftell(f);
+
+	//map memory;
+	ext2_map_start = mmap(NULL, fsize, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(f), 0);
+	if (ext2_map_start == MAP_FAILED) {
+		perror("Error mmapping the image file\n");
+		exit(1);
+	} else {
+		printf("mmap created, address %p\n", ext2_map_start);
+	}
+
 	//load the root block;
-	fseek(f, 1024, SEEK_SET); // seek to the beginning of the first superblock
-	superblock_root = parse_super(f);
+	superblock_root = parse_super(1024);
 
 	//print_hex(superblock_root, sizeof(superblock));
 
@@ -86,15 +101,20 @@ void init_ext2lib(FILE *f) {
 	//pfield(superblock_root,s_blocks_per_group);
 
 	//load the blockgroups in to memory
-	blockgroup_list = malloc(sizeof(blockgroup) * 
-			((c_one_bg) ? 1 : (c_num_block_groups)) );
-	fseek(f,1024 + SUPERBLOCK_SIZE, SEEK_SET);
 	
-	int i=0;
-	do {
-		load_blockgroup(blockgroup_list + i, f, 1024+i*c_bg_size);
-		i++;
-	} while (i<c_num_block_groups);
+	blockgroup_list = malloc(sizeof(blockgroup));
+	
+	load_blockgroup(blockgroup_list, 1024);
+	swap_endian_on_block(blockgroup_list->inode_bitmap, c_block_size);
+	swap_endian_on_block(blockgroup_list->block_bitmap, c_block_size);
+	
+}
+
+void teardown_ext2lib() {	
+	
+	swap_endian_on_block(blockgroup_list->inode_bitmap, c_block_size);
+	swap_endian_on_block(blockgroup_list->block_bitmap, c_block_size);
+	
 }
 
 
@@ -160,11 +180,6 @@ char *pop_first_from_path(char *path) {
 	memcpy(newstr+len, "\0", sizeof(char));
 	
 	return newstr;
-}
-
-
-void update_image(FILE *f){
-	//TODO this
 }
 
 

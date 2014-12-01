@@ -64,6 +64,8 @@ uint   s_rev_level;          // 0: old ext2 (static sized inodes)
 ushort s_def_resuif;         // default user id for reserved blocks
 ushort s_def_resgid;         // default group id for reserved blocks
 
+char padding[4];
+
 // EXT2 DYANMIC REV Specific
 uint   s_first_ino;          // first inode for standard files  (11 in old)
 ushort s_inode_size;         // size of inode					(128 in old)
@@ -83,6 +85,7 @@ char padding_s_last_mounted[64];
 
 uint   s_algo_bitmap;        // compression algorithms used
 
+char padding_performance_hints[4];
 // Performance hits (prealoc blocks)
     // noone cares, just skip 4 bytes (one int)
 
@@ -99,14 +102,15 @@ char padding_hash_indexing[20];
 // these might just be ext3, so who cares for now
 // uint   s_default_mount_options;
 // uint   s_first_meta_bg;
+char padding_mountops[8];
 } __attribute__((packed));
 typedef struct superblock superblock;
 
-superblock *parse_super(FILE *f);
+superblock *parse_super(int offset);
 
 
 superblock *superblock_root;
-uint c_block_size;
+size_t c_block_size;
 uint c_num_block_groups;
 uint c_bg_size;
 bool c_one_bg;

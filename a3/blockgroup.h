@@ -19,7 +19,7 @@ struct descriptor {
 typedef struct descriptor descriptor;
 
 struct blockgroup {
-	descriptor desc;
+	descriptor *desc;
 	char *block_bitmap;
 	char *inode_bitmap;
 	struct inode *inode_table;
@@ -34,7 +34,7 @@ bool is_bitmap_free(int i, char* bitmap);
 // loads a block group starting from the current location of the file.
 // checks the superblock loaded against superblock_root, the fist superblock
 // seen. If they are different, panic and fail
-void load_blockgroup(blockgroup *dest, FILE *f, int location);
+void load_blockgroup(blockgroup *dest, int location);
 
 
 
@@ -60,11 +60,7 @@ struct inode {
 
 	uint   i_block[15]; // the array of blocks used
 	
-	uint   i_generation;
-	uint   i_file_generation;
-	uint   i_file_acl;
-	uint   i_dir_acl;
-	uint   i_faddr;
+	char   padding_generation[16];
 
 	char   i_osd2[12];
 
@@ -72,14 +68,14 @@ struct inode {
 typedef struct inode inode;
 
 // inode helpers
-inode *load_inode(FILE *f, int inode);
 int inode_numblocks(inode *ino);
-int inode_seek_nth_block(FILE *f, inode *i, int n);
 int inode_type(inode *i);
-void *aggregate_file(FILE *f, inode *i);
+void *inode_nth_block_ptr(inode *i, int n);
+void *aggregate_file(inode *i);
+void dump_buffer(inode *i, void*buf);
 
-inode *get_inode_for(FILE *f, char *path);
-inode *inode_get_child(FILE *f, inode* current, char *name);
+inode *get_inode_for(char *path);
+inode *inode_get_child(inode* current, char *name);
 inode *get_inode(int ino);
 int make_inode(int size);
 int make_file_inode(int size_bytes);
@@ -98,13 +94,13 @@ typedef struct directory_node directory_node;
 
 // Directory Helpers
 directory_node *next_node(directory_node *d);
-void make_hardlink(FILE *f, char *name, inode *dir, uint file_ino);
+void make_hardlink(char *name, inode *dir, uint file_ino);
 
 size_t d_node;
 
 
 // etc
-int block_addr(int blocknumber);
+void *block_addr(int blocknumber);
 int fsize_blocks(int fsize);
 
 #endif

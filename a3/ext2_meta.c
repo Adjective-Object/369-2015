@@ -8,7 +8,7 @@
 			strut->field_name );\
 }
 
-extern uint c_block_size;
+extern size_t c_block_size;
 
 int main (int argc, char** argv) {
 	if (argc != 2) {
@@ -16,7 +16,7 @@ int main (int argc, char** argv) {
 		return 1;
 	} else {
 		
-		FILE *f = fopen(argv[1], "r");
+		FILE *f = fopen(argv[1], "r+");
 		init_ext2lib(f);
 		superblock *sp = superblock_root;
 
@@ -28,10 +28,12 @@ int main (int argc, char** argv) {
 		pfield(sp, s_first_data_block);
 		printf("\n");
 		pfield(sp, s_log_block_size);
-		printf("\tactual block size: %d\n", c_block_size);
+		printf("\tactual block size: %d\n", (uint)c_block_size);
 		printf("\n");
 		pfield(sp, s_first_ino);
 		pfield(sp, s_inode_size);
+
+		teardown_ext2lib();
 	}
 	return 0;
 }

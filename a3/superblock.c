@@ -5,61 +5,6 @@
 
 extern char is_little_endian;
 
-void fix_endian(superblock *s) {
-    efix(s_inodes_count);
-    efix(s_blocks_count);
-    efix(s_r_blocks_count);
-    efix(s_free_blocks_count);
-    efix(s_free_inodes_count);
-    efix(s_first_data_block);
-
-    efix(s_log_block_size);
-    efix(s_log_frag_size);
-
-    efix(s_blocks_per_group);
-    efix(s_frags_per_group);
-
-    efix(s_mtime);
-    efix(s_wtime);
-
-    efix(s_mnt_count);
-    efix(s_max_mnt_count);
-
-    efix(s_magic);
-    efix(s_state);
-
-    efix(s_errors);
-
-    efix(s_minor_rev_level);
-
-    efix(s_lastcheck);
-    efix(s_checkinterval);
-
-    efix(s_creator_os);
-    efix(s_rev_level);
-
-    efix(s_def_resuif);
-    efix(s_def_resgid);
-
-    efix(s_first_ino);
-    efix(s_inode_size);
-    efix(s_block_group_nr);
-
-    efix(s_feature_compat);
-    efix(s_feature_incompat);
-    efix(s_feature_ro_compat);
-
-	efix(s_uuid);
-	efix(s_volume_name);
-
-    efix(s_algo_bitmap);
-
-	efix(s_journal_uuid);
-    efix(s_journal_inum);
-    efix(s_journal_dev);
-    efix(s_last_orphan);
-}
-
 void check_and_fix_endian(superblock *s) {
 	if (is_little_endian) {
 		printf("this system is little endian, do not need to flip byte order\n");
@@ -97,24 +42,21 @@ void check_support(superblock *s) {
 }
 
 
-superblock *parse_super(FILE *f) {
-	// read contents of junk
-	superblock *super = malloc(sizeof(superblock)); // malloc and load
-	fread((void *) super, sizeof(superblock), 1, f);
-
+superblock *parse_super(int offset) {
+	superblock *super = (superblock *) (ext2_map_start + offset);
+	
 	// correct the endianness of the items in fields
-	check_and_fix_endian(super);
+	// check_and_fix_endian(super);
 
-	// check verification tricks
-
-	//check if itis usable
+	//check if it is usable
 	check_support(super);
 
 	// set fields not set in revision 0 superblock
+	/*
 	if (super->s_rev_level == 0) {
 		super->s_first_ino = 11;
 		super->s_inode_size = 128;
-	}
+	} */
 
 	return super;
 }
