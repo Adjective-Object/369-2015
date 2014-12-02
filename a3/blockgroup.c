@@ -234,7 +234,7 @@ int make_inode(int fsize) {
 		new_node->i_block[i] = block;
 	}
 
-	printf("memsetting...\n");
+	printf("memsetting end of file\n");
 	// set the remaining blocks to 0
 	memset( &(new_node->i_block[i+1]), 0, 15-i);
 
@@ -249,8 +249,11 @@ int make_file_inode(int fsize) {
 }
 
 
-directory_node *next_node(directory_node *d){
-    return (directory_node *) ( ((char *)d) + d->d_rec_len);
+directory_node *next_node(directory_node *d) {
+	printf("(next %p name %p)\n", 
+			(char *) d + d->d_rec_len, 
+			( (char *) d + (d_node + d->name_len + 1) ));
+    return (directory_node *) ( (char *) d + (d_node + d->name_len + 1) );
 }
 
 void inode_add_block(inode *i, uint new_block){
@@ -271,18 +274,25 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 	directory_node *dir_head = aggregate_file(dir);
 	directory_node *tail = dir_head;
 
-	int bufcount = fsize_blocks(dir->i_uid) * c_block_size;
+	//print_hex(dir_head, c_block_size);
+	int bsize = fsize_blocks(dir->i_uid) * c_block_size;
+	int bufcount = bsize;
 
 	printf("scanning to end of directory");
 	fflush(stdout);
-	//TODO traversals that account for deleted entries
-	while(	tail->d_inode_num != 0 && 
-			(char *)tail < (char *) dir_head + bufcount ) {
+	// scan until the tail of the linked list
+	// TODO traversals that account for deleted entries
+	while(	tail->d_inode_num != 0 ) {
 		printf(".");
-		bufcount -= tail->d_rec_len;
+		printf("\n %d, %d",tail->d_inode_num, bufcount);
+		bufcount = bsize - ( ((intptr_t) tail) - ((intptr_t) dir_head) );
 		tail = next_node(tail);
 	}
-	printf("\n");
+	printf("\n %d, %d",tail->d_inode_num, bufcount);
+	printf("\ntail is at %d (%p - %p)\n", 
+			bsize - bufcount,
+			tail,
+			dir_head);
 
 	ushort required_size = (int)(d_node + strlen(name) + 1);
 	// if there is not enough room in the file, allocate a new buffer for it
@@ -313,9 +323,11 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 	ushort ftype;
 	switch (inode_type(file_inode)) {
 		case INODE_MODE_FILE:
+			printf("adding a new file\n");
 			ftype = 1;
 			break;
 		case INODE_MODE_DIRECTORY:
+			printf("adding a new directory\n");
 			ftype = 2;
 			break;
 		default:
@@ -333,6 +345,7 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 
 	// dump the modified directory file back to the disk
 	printf("dumping directory back to disk\n");
+	//print_hex(dir_head, c_block_size);
 	dump_buffer(dir, dir_head);
 }
 

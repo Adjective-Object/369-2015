@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/mman.h>
+#include <ctype.h>
 
 
 void swap_endian_on_field(void *addr, uint32_t size) {
@@ -46,12 +47,29 @@ extern size_t c_block_size;
 extern uint c_bg_size;
 extern bool c_one_bg;
 
+void print_chars(void *bin, size_t size) {
+	char *c = bin;
+	int i;
+	for(i=0; i<size; i++){
+		if(isgraph(*c)){
+			printf("%c", *c);
+		} else {
+			printf(" ");
+		}
+		c++;
+	}
+}
+
 void print_hex(void *bin, size_t size){
 	short *c = bin;
 	int i;
 
 	for (i=0; i<size/2; i++) {
 		if (i%8 == 0) {
+			if (i != 0) {
+				printf("\t");
+				print_chars(c-8, sizeof(char) * 16);
+			}
 			printf("\n");
 		}
 		printf("%04hx ", (unsigned short) (*c) );
@@ -121,9 +139,7 @@ void teardown_ext2lib() {
 
 
 
-size_t d_node = 
-    sizeof(directory_node) 
-        - sizeof(char) * 255; 
+size_t d_node = 8* sizeof(char); 
 
 uint file_peek(FILE *f){ 
     int p;
