@@ -38,14 +38,27 @@ ext2_inspect: ext2_inspect.o blockgroup.o superblock.o ext2.o
 .PHONY fake:
 
 setup: fake
+	-mkdir -p img
+	-mkdir -p tst
 	-mkdir -p dump 
 	-mkdir -p dump/img
 	-mkdir -p dump/tst
 	-mkdir -p diffs
+	make wget
+	make diffs
+
+wget: fake
+	wget -O img/0-emptydisk.img http://www.cdf.toronto.edu/~csc369h/fall/assignments/a3/emptydisk.img
+	wget -O img/1-onefile.img http://www.cdf.toronto.edu/~csc369h/fall/assignments/a3/onefile.img
+	wget -O img/2-deletedfile.img http://www.cdf.toronto.edu/~csc369h/fall/assignments/a3/deletedfile.img
+	wget -O img/3-onedirectory.img http://www.cdf.toronto.edu/~csc369h/fall/assignments/a3/onedirectory.img
+	wget -O img/4-hardlink.img http://www.cdf.toronto.edu/~csc369h/fall/assignments/a3/hardlink.img
+	wget -O img/5-deleteddirectory.img http://www.cdf.toronto.edu/~csc369h/fall/assignments/a3/deleteddirectory.img
+	
 
 diffs: fake
-	dumpimgs.sh
-	makediffs.sh
+	./dumpimgs.sh
+	./makediffs.sh
 
 reset:
 	cp img/* tst/

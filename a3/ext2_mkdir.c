@@ -7,43 +7,77 @@
 #include "blockgroup.h"
 #include "ext2.h"
 
-void cp_to_dir(char *name, directory *dir, void *buffer, void *amnt) {
-	//TODO this
+extern size_t c_block_size;
+
+void cp_to_dir(FILE *input,  char *name, inode *dest_dir){
+	printf("cp %.*s to inode %d\n", (int)strlen(name), name, dest_dir->i_uid);
+	
+	//get the size of the file
+	fseek(input, 0, SEEK_END);
+	int i, fsize = ftell(input);
+
+	int fsize_blocks = fsize / c_block_size + (fsize % c_block_size != 0);
+	char *buffer = malloc(sizeof(char) *c_block_size);
+
+	// find a new inode and allocate to it the blocks for a new file
+	int new_inode = make_file_inode(fsize);
+
+	// read the file in one block at a time and copy it into the
+	// appropriate data blocks
+	fseek(input, 0, SEEK_SET);
+	for(i=0; i<fsize_blocks; i++){	
+		fread(buffer, sizeof(char), c_block_size, input);
+
+		void *block = inode_nth_block_ptr(get_inode(new_inode), i);
+		memcpy(block, buffer, c_block_size);
+	}
+
+	printf("file copied, creating hardlink\n");
+	make_hardlink(name, dest_dir, new_inode);
 }
 
-int main(int argc, char** argv) {
-	if (argc !=3 ){i
-		ifprintf(stderr, "Usage is: ext2_cp <image> <file> <path>");
+int main(int argc, char ** argv) {
+	if (argc != 4){
+		fprintf(stderr, 
+				"Usage is ext2_cp <image> <file> <path_to_destination>\n");
+		return 1;
+	}
+
+	//load files, check for opening errors
+	FILE	*img = fopen(argv[1], "r+");
+	if (!img) {
+		fprintf( stderr, "Error opening image file \"%.*s\"",
+				(int) strlen(argv[1]),
+				argv[1]);
+		return 1;
+	}
+
+	FILE  *fil = fopen(argv[2], "r");
+	if (!fil) {
+		fprintf( stderr, "Error opening file \"%.*s\" for reading",
+				(int) strlen(argv[2]),
+				argv[2]);
+		return 1;
 	}
 	
-	else {
-		// load the file and check that it is correct
-		FILE	*img  = fopen(argv[1], "r+"),
-				*file = fopen(argv[2], "r");
-		if (!img)
-			fprintf(stderr, "failed to open disk image %.*s",
-						strlen(argv[1]), argv[1]);
-		if (!file)
-			fprintf(stderr, "failed to open file %.*s",
-						strlen(argv[2], argv[2]));
-		
-		init_ext2lib(img);
-	
-		// 2 possible configurations:
-		// destination path can either be a full path
-		// or the name of the directory containing it.
-		inode *dir;
-		bool path_is_dir = (dir = get_inode_for(f, argv[3]))
-		bool path_is_name = !path_is_dir && 
-				(dir = get_inode_for(f, pop_last_from_path(argv[3])))
-		
-		if (path_is_dir) {
-			cp_to_dir(	get_last_from_path(argv[2]), dir);
-		}
-		else if (path_is_name) {
-			cp_to_dir(	get_last_from_path(argv[3]), dir);
-		} else {
-			fprintf(stderr, "invalid copy destination");
-		}
-}
+	printf("img: %.*s \n", (int)strlen(argv[1]), argv[1]);
+	printf("file: %.*s \n", (int)strlen(argv[2]), argv[2]);
 
+	init_ext2lib(img);
+
+	// find the destination directory and name
+	inode *dest = get_inode_for(argv[3]);
+	char *name = get_last_in_path(argv[2]);
+	
+	if (dest == NULL || inode_type(dest) != INODE_MODE_DIRECTORY) {
+		dest = get_inode_for(pop_last_from_path(argv[3]) );
+		name = get_last_in_path(argv[3]);
+	}
+
+	// insert with proper name into the directory
+	cp_to_dir(fil,  name, dest);
+
+	teardown_ext2lib();
+
+	return 0;
+}

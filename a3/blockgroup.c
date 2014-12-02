@@ -175,6 +175,10 @@ void set_bitmap_used(int i, char *bitmap, bool val) {
 // find an inode from blockgroup_list and mark it as used
 // returns a pointer to the inode
 uint allocate_inode() {
+    if (superblock_root->s_free_inodes_count == 0) {
+        return 0;
+    }
+
 	char *ibm = blockgroup_list->inode_bitmap;
 	int i;
 	// lost+found is at 11 and is not marked in the bitmap for some reason
@@ -184,21 +188,30 @@ uint allocate_inode() {
 			return i;
 		}
 	}
+    
+    superblock_root->s_free_inodes_count --;
 	return 0;
 }
 
 // find a data block in blockgroup_list and mark it as used
 // returns the number of thedatablock
 uint allocate_data_block() {
+    if (superblock_root->s_free_blocks_count == 0) {
+        return 0;
+    }
+
 	char *dbm = blockgroup_list->block_bitmap;
 	int i;
-	//start scanning at 16 because of reasons
+	//start scanning at 16 because of reasons//alloc
+    //
 	for (i=16; i<c_block_size* 8; i++){
 		if(is_bitmap_free(i,dbm)) {
 			set_bitmap_used(i, dbm, true);
 			return i;
 		}
 	}
+
+    superblock_root->s_free_blocks_count --;
 	return 0;
 }
 
@@ -241,6 +254,16 @@ int make_inode(int fsize) {
 	return new_ino;
 }
 
+int make_directory_inode() {
+    int ino = make_inode(c_block_size/512);
+    inode *i = get_inode(ino);
+    i->i_mode = INODE_MODE_DIRECTORY;
+
+
+    // update the directory count in the superblock;
+    return ino;
+}
+
 int make_file_inode(int fsize) {
 	int ino = make_inode(fsize);
 	inode *i = get_inode(ino);
@@ -250,10 +273,7 @@ int make_file_inode(int fsize) {
 
 
 directory_node *next_node(directory_node *d) {
-	printf("(next %p name %p)\n", 
-			(char *) d + d->d_rec_len, 
-			( (char *) d + (d_node + d->name_len + 1) ));
-    return (directory_node *) ( (char *) d + (d_node + d->name_len + 1) );
+    return (directory_node *) ( (char *) d + (d->d_rec_len) );
 }
 
 void inode_add_block(inode *i, uint new_block){
@@ -282,15 +302,24 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 	fflush(stdout);
 	// scan until the tail of the linked list
 	// TODO traversals that account for deleted entries
-	while(	tail->d_inode_num != 0 ) {
+    directory_node *next = tail;
+    while(bufcount > 0) {
+        tail = next;
 		printf(".");
 		printf("\n %d, %d",tail->d_inode_num, bufcount);
-		bufcount = bsize - ( ((intptr_t) tail) - ((intptr_t) dir_head) );
-		tail = next_node(tail);
-	}
-	printf("\n %d, %d",tail->d_inode_num, bufcount);
-	printf("\ntail is at %d (%p - %p)\n", 
-			bsize - bufcount,
+        next = next_node(tail);
+		bufcount = bsize - ( ((intptr_t) next) - ((intptr_t) dir_head) );
+    }
+
+    // update the the size of the tail pointer and step
+    // forward to the blank space
+    ushort termlen = (ushort) d_node + (char) tail->name_len + 1;
+    tail->d_rec_len = termlen;
+    tail = (directory_node *) (((char*) tail) + tail->d_rec_len);
+    
+	printf("\ntailno=%d, bufcount=%d",tail->d_inode_num, bufcount);
+	printf("\ntail is at %lu (%p - %p)\n", 
+			(intptr_t) tail - (intptr_t) dir_head,
 			tail,
 			dir_head);
 
@@ -338,10 +367,15 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 	// assign the values for the new directory entry
 	printf("assigning directory values\n");
 	tail->d_inode_num = file_ino;
-	tail->d_rec_len = required_size;
-	tail->name_len = (ushort) strlen(name);
+	tail->name_len = (ushort) strlen(name) + 1;
+	tail->d_rec_len = 
+        bsize - ((intptr_t) tail - (intptr_t) dir_head);
 	tail->filt_type = ftype;
 	memcpy(&(tail->name), name, sizeof(char) * strlen(name) + 1);
+
+    // increment the link count on the linked node;
+    file_inode->i_links_count ++;
+    file_inode->i_atime = time(NULL);
 
 	// dump the modified directory file back to the disk
 	printf("dumping directory back to disk\n");
