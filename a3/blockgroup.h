@@ -70,7 +70,7 @@ typedef struct inode inode;
 // inode helpers
 int inode_numblocks(inode *ino);
 int inode_type(inode *i);
-void *inode_nth_block_ptr(inode *i, int n);
+void *inode_nth_block_ptr(inode *i, uint n);
 void *aggregate_file(inode *i);
 void dump_buffer(inode *i, void*buf);
 

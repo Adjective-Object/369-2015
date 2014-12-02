@@ -23,6 +23,7 @@ inode *get_inode(int ino){
     return &(blockgroup_list->inode_table[ino - 1]); 
 }
 
+
 void load_blockgroup(blockgroup * bg, int location) {
 	// read a new superblock and compare it to the root.
 	// if they are not the same, panic and exit
@@ -55,12 +56,15 @@ void load_blockgroup(blockgroup * bg, int location) {
 	// swap_endian_on_block(bg->inode_bitmap, sizeof(char) * c_block_size);
 }
 
-// seeks f to the nth root-level block on the disk
-void *inode_nth_block_ptr(inode *i, int n) {
-	// direct link
-	if (i->i_block[n]) {
-		return block_addr(i->i_block[n]);
-	} else {
+// gets the pointer to the nth used file block,
+// accounting for indirect nodes
+void *inode_nth_block_ptr(inode *i, uint n){
+	if (n<12 && i->i_block[n]) {
+			return block_addr(i->i_block[n]);
+	} else if (i->i_block[12]) {
+		uint *indirect_buf = block_addr(i->i_block[12]);
+		return block_addr(indirect_buf[n-12]);
+	} else{
 		return NULL;
 	}
 }
@@ -74,33 +78,28 @@ void *aggregate_file(inode *i){
 	int n;
 	void *block;
 	char *buf = malloc(sizeof(char) * inode_numblocks(i) * c_block_size);
-	for(n=0; n<12; n++) {
+	for(n=0; n<(12 + (c_block_size / sizeof(uint))); n++) {
         if ((block=inode_nth_block_ptr(i, n))) {
-			memcpy(buf, block, sizeof(char) * c_block_size);
-        }
+			memcpy(buf, block, c_block_size);
+        } else if (n == 12) {
+			break;
+		}
     }
 
-	// the first indirect block
-	if (i->i_block[12]) {
-		//read the indirect block
-		uint *indirect = inode_nth_block_ptr(i,12);
-		
-		// scan the indirect block for nodes, appending them to the
-		// block buffer as you go.
-		for (n=0; n<c_block_size/4; n++) {
-			if(indirect[n]) {
-				memcpy( buf + ( (12 + n) * c_block_size), 
-						block_addr(indirect[n]),
-						c_block_size);
-			}
-		}
-
-	}
     return (void *)buf;
 }
 
 void dump_buffer(inode *i, void *buffer){
-	//TODO this	
+	int n;
+	void *block;
+	for(n=0; n<(12 + c_block_size / sizeof(uint)); n++) {
+        if ((block=inode_nth_block_ptr(i, n))) {
+			printf("dump block %d\n", n);
+			memcpy(block, buffer, c_block_size);
+        } else if (n == 12) {
+			break;
+		}
+	}    	
 }
 
 
@@ -158,7 +157,6 @@ void init_inode_meta(inode *i){
 	i->i_dtime = 0;
 
 	i->i_links_count = 0;
-	memset(&(i->i_block), 0, sizeof(((inode *) NULL) -> i_block) );
 }
 
 
@@ -171,7 +169,7 @@ bool is_bitmap_free(int i, char *bitmap) {
 
 void set_bitmap_used(int i, char *bitmap, bool val) {
 	unsigned char mask = 128 >> ((i % 8));
-	bitmap[i/8] = (bitmap[i/8] & ~mask) | ((val) ? 0 : mask ) ;
+	bitmap[i/8] = (bitmap[i/8] & (~mask)) | ((true == val) ? 0 : mask ) ;
 }
 
 // find an inode from blockgroup_list and mark it as used
@@ -179,7 +177,8 @@ void set_bitmap_used(int i, char *bitmap, bool val) {
 uint allocate_inode() {
 	char *ibm = blockgroup_list->inode_bitmap;
 	int i;
-	for (i=superblock_root->s_first_ino; i<c_block_size; i++){
+	// lost+found is at 11 and is not marked in the bitmap for some reason
+	for (i=12; i<c_block_size * 8; i++){
 		if(is_bitmap_free(i,ibm)) {
 			set_bitmap_used(i, ibm, true);
 			return i;
@@ -193,7 +192,8 @@ uint allocate_inode() {
 uint allocate_data_block() {
 	char *dbm = blockgroup_list->block_bitmap;
 	int i;
-	for (i=superblock_root->s_first_data_block; i<c_block_size; i++){
+	//start scanning at 16 because of reasons
+	for (i=16; i<c_block_size* 8; i++){
 		if(is_bitmap_free(i,dbm)) {
 			set_bitmap_used(i, dbm, true);
 			return i;
@@ -208,6 +208,7 @@ int make_inode(int fsize) {
 
 	// find empty inode in datablock list and allocate it
 	uint new_ino = allocate_inode();
+	printf("allocated new inode %d\n", new_ino);
 	inode *new_node = get_inode(new_ino);
 	if(new_node == NULL) {
 		fprintf(stderr, "could not allocate new inode, no space left\n");
@@ -223,13 +224,17 @@ int make_inode(int fsize) {
 	// find and allocate enough data blocks for the file
 	int i;
 	for(i=0; i<fblocks; i++) {
+		//TODO if it requires indirect blocks
 		uint block = allocate_data_block();
+		printf("allocated data block %d\n", block);
 		if(block == 0) {
 			fprintf(stderr, "could not allocate new data block, no space left\n");
 			exit(1);
 		}
 		new_node->i_block[i] = block;
 	}
+
+	printf("memsetting...\n");
 	// set the remaining blocks to 0
 	memset( &(new_node->i_block[i+1]), 0, 15-i);
 
@@ -262,17 +267,27 @@ void inode_add_block(inode *i, uint new_block){
 }
 
 void make_hardlink(char *name, inode *dir, uint file_ino) {
-	//aggregate the file, get the pointer to the padding 
+	//aggregate the file, get the pointer to the tail 
 	directory_node *dir_head = aggregate_file(dir);
-	directory_node *padding = dir_head;
-	
-	while(padding->d_inode_num != 0) {
-		padding = next_node(padding);
-	}
+	directory_node *tail = dir_head;
 
-	ushort required_size = 8 + (int)(d_node + strlen(name));
+	int bufcount = fsize_blocks(dir->i_uid) * c_block_size;
+
+	printf("scanning to end of directory");
+	fflush(stdout);
+	//TODO traversals that account for deleted entries
+	while(	tail->d_inode_num != 0 && 
+			(char *)tail < (char *) dir_head + bufcount ) {
+		printf(".");
+		bufcount -= tail->d_rec_len;
+		tail = next_node(tail);
+	}
+	printf("\n");
+
+	ushort required_size = (int)(d_node + strlen(name) + 1);
 	// if there is not enough room in the file, allocate a new buffer for it
-	if (padding->d_rec_len - 8 < required_size) {
+	if (bufcount - d_node < required_size) {
+		printf("not enough size, expanding directory buffer\n");
 		// malloc an appropriately sized buffer
 		size_t size_buffer = sizeof(char)
 							* c_block_size 
@@ -285,20 +300,13 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 
 		// reassign file_head and new_node
 		dir_head = new_buffer;
-		int padding_diff = (intptr_t) padding - (intptr_t) dir_head;
-		padding = dir_head + padding_diff;
+		int tail_diff = (intptr_t) tail - (intptr_t) dir_head;
+		tail = dir_head + tail_diff;
 	
 		//add a new block to the inode
 		int new_block = allocate_data_block();
 		inode_add_block(dir, new_block);
 	}
-
-	
-	// move the node at the head of the padding forward
-	// and put the new directory node in its place
-	directory_node *newpadding = (directory_node *)(((char *)padding) + required_size);
-	memcpy(newpadding, padding, required_size);
-	newpadding->d_rec_len = newpadding->d_rec_len - required_size;
 
 	// get the right file type for the directory entry
 	inode *file_inode = get_inode(file_ino);
@@ -311,17 +319,21 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 			ftype = 2;
 			break;
 		default:
+			fprintf(stderr, "unknown file type..\n");
 			ftype = 0;
 	}
+
 	// assign the values for the new directory entry
-	padding->d_inode_num = file_ino;
-	padding->d_rec_len = required_size;
-	padding->name_len = (ushort) strlen(name);
-	padding->filt_type = ftype;
+	printf("assigning directory values\n");
+	tail->d_inode_num = file_ino;
+	tail->d_rec_len = required_size;
+	tail->name_len = (ushort) strlen(name);
+	tail->filt_type = ftype;
+	memcpy(&(tail->name), name, sizeof(char) * strlen(name) + 1);
 
 	// dump the modified directory file back to the disk
+	printf("dumping directory back to disk\n");
 	dump_buffer(dir, dir_head);
-	free(dir_head);
 }
 
 

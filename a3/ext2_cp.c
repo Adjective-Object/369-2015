@@ -9,7 +9,9 @@
 
 extern size_t c_block_size;
 
-void cp_to_dir(FILE *input,  char *name, inode *dest){
+void cp_to_dir(FILE *input,  char *name, inode *dest_dir){
+	printf("cp %.*s to inode %d\n", (int)strlen(name), name, dest_dir->i_uid);
+	
 	//get the size of the file
 	fseek(input, 0, SEEK_END);
 	int i, fsize = ftell(input);
@@ -20,18 +22,18 @@ void cp_to_dir(FILE *input,  char *name, inode *dest){
 	// find a new inode and allocate to it the blocks for a new file
 	int new_inode = make_file_inode(fsize);
 
-	// read the file in one block at a time and copy it in
+	// read the file in one block at a time and copy it into the
+	// appropriate data blocks
 	fseek(input, 0, SEEK_SET);
-	for(i=0; i<fsize_blocks; i++){
+	for(i=0; i<fsize_blocks; i++){	
 		fread(buffer, sizeof(char), c_block_size, input);
-		
-		// seek to the proper data block and write it
-		// TODO fix nth block to handle files that use indirect nodes
-		void * block = inode_nth_block_ptr(get_inode(new_inode), i);
+
+		void *block = inode_nth_block_ptr(get_inode(new_inode), i);
 		memcpy(block, buffer, c_block_size);
 	}
 
-	make_hardlink(name, dest, new_inode);
+	printf("file copied, creating hardlink\n");
+	make_hardlink(name, dest_dir, new_inode);
 }
 
 int main(int argc, char ** argv) {
@@ -65,11 +67,11 @@ int main(int argc, char ** argv) {
 
 	// find the destination directory and name
 	inode *dest = get_inode_for(argv[3]);
-	char *name = get_last_in_path(argv[3]);
+	char *name = get_last_in_path(argv[2]);
 	
 	if (dest == NULL || inode_type(dest) != INODE_MODE_DIRECTORY) {
 		dest = get_inode_for(pop_last_from_path(argv[3]) );
-		name = get_last_in_path(argv[2]);
+		name = get_last_in_path(argv[3]);
 	}
 
 	// insert with proper name into the directory

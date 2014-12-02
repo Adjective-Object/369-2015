@@ -93,6 +93,8 @@ void init_ext2lib(FILE *f) {
 
 	//load each blockgroup into the list of blockgroups)
 
+	//print_hex(superblock_root, sizeof(superblock));
+
 	c_num_block_groups = superblock_root->s_blocks_count /
 		superblock_root->s_blocks_per_group;
 	c_one_bg = (c_num_block_groups == 0);
