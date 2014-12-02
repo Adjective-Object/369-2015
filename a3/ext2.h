@@ -56,7 +56,7 @@ uint file_peek(FILE *f);
 // path writing
 // in path is a pointer to a substring. from path is a new string;
 char *get_last_in_path(char *path);
-char *pop_last_from_path(char *path);
+char *pop_base_from_path(char *path);
 char *get_next_in_path(char *path);
 char *pop_first_from_path(char *path);
 

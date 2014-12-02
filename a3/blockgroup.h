@@ -27,7 +27,7 @@ struct blockgroup {
 typedef struct blockgroup blockgroup;
 
 // list of block group descriptors, initialized by init_ext2lib;
-blockgroup *blockgroup_list;
+blockgroup *blockgroup_root;
 uint allocate_data_block();
 bool is_bitmap_free(int i, char* bitmap);
 
@@ -74,8 +74,8 @@ void *inode_nth_block_ptr(inode *i, uint n);
 void *aggregate_file(inode *i);
 void dump_buffer(inode *i, void*buf);
 
-inode *get_inode_for(char *path);
-inode *inode_get_child(inode* current, char *name);
+int get_inode_by_path(char *path);
+int inode_get_child(inode* current, char *name);
 inode *get_inode(int ino);
 int make_inode(int size);
 int make_file_inode(int size_bytes);

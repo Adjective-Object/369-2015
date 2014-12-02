@@ -29,12 +29,9 @@ ext2_inspect: ext2_inspect.o blockgroup.o superblock.o ext2.o
 ext2_traverse: ext2_traverse.o blockgroup.o superblock.o ext2.o
 	gcc -Wall -g $^ -o ext2_traverse
 
-## does a cool thing
+## generic rule for building .o files
 
 %.o: %.c %.h
-	gcc -Wall -g -c  $<
-
-%.o: %.c
 	gcc -Wall -g -c $<
 
 ## macros to make devel faster
