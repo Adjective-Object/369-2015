@@ -18,13 +18,16 @@ ext2_cp: ext2_cp.o ext2.o blockgroup.o superblock.o
 
 ## debug stuff
 
-debugtools: ext2_meta ext2_inspect
+debugtools: ext2_meta ext2_inspect ext2_traverse
 
 ext2_meta: blockgroup.o superblock.o ext2.o ext2_meta.c
 	gcc -Wall -g $^ -o ext2_meta
 
 ext2_inspect: ext2_inspect.o blockgroup.o superblock.o ext2.o
 	gcc -Wall -g $^ -o ext2_inspect
+
+ext2_traverse: ext2_traverse.o blockgroup.o superblock.o ext2.o
+	gcc -Wall -g $^ -o ext2_traverse
 
 ## does a cool thing
 

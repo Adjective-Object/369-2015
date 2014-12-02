@@ -172,18 +172,20 @@ char *get_last_in_path(char *path) {
 
 char *pop_last_from_path(char *path) {
 	char *last = get_last_in_path(path);
-	intptr_t len = 1 + (intptr_t)(last) - (intptr_t)(path);
+	intptr_t len = (intptr_t)(last) - (intptr_t)(path);
 	
-	char *newstr = malloc(sizeof(char) * len);
-	memcpy(newstr, last, len);
-	return newstr;
+	char *newstr = malloc(sizeof(char) * len + 1);
+	memcpy(newstr, path, len);
+	newstr[len+1] = '\0';
+    return newstr;
 }
 
 
 char *get_next_in_path(char *path) {
-	while(*path != '\0') {
-		if (*path == '/')
-			return path +1;	
+    while(*path != '\0') {
+		if (*path == '/') {
+            return path+1;
+        }
 		path ++;
 	}
 	return path;
@@ -194,7 +196,7 @@ char *pop_first_from_path(char *path) {
 	
 	intptr_t len = (intptr_t) next - (intptr_t) path;
 	char *newstr = malloc(sizeof(char) * (len + 1));
-	memcpy(newstr, next, sizeof(char) * (len));
+	memcpy(newstr, path, sizeof(char) * (len));
 	memcpy(newstr+len, "\0", sizeof(char));
 	
 	return newstr;

@@ -17,6 +17,13 @@
 			strut->field_name );\
 }
 
+#define pstr(strname) {\
+    printf(\
+        #strname"\t%.*s\n",\
+        (int) strlen(strname),\
+        strname);\
+}
+
 #define efix(field) \
 	(swap_endian_on_field(\
 		(void *)&(s->field),\

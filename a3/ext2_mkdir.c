@@ -9,7 +9,7 @@
 
 extern size_t c_block_size;
 
-void cp_to_dir(FILE *input,  char *name, inode *dest_dir){
+void mk_dir(FILE *input,  char *name, inode *dest_dir){
 	printf("cp %.*s to inode %d\n", (int)strlen(name), name, dest_dir->i_uid);
 	
 	//get the size of the file

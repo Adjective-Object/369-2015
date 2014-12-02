@@ -106,14 +106,26 @@ void dump_buffer(inode *i, void *buffer){
 // gets the inode for a directory / file indicated by a given path.
 inode *get_inode_for(char *path){
 	inode *cur = get_inode(2); 
-	
+
+    /*
+    printf("begin traversal path at %.*s\n", 
+            (int) strlen(path), path);
+    */
+
 	path = get_next_in_path(path); // skip the leading / for root
-	while (path != NULL && *path != '\0') {
-		char *name = pop_first_from_path(path);
-		inode *nxt = inode_get_child(cur, name);
+    
+	
+    while (path != NULL && *path != '\0') {
+        char *name = pop_first_from_path(path);
+        path = get_next_in_path(path);
+
+        printf("name : %.*s, path : %.*s\n",
+                (int) strlen(name), name,
+                (int) strlen(path), path);
+
+        inode *nxt = inode_get_child(cur, name);
 		cur = nxt;
 
-		path = get_next_in_path(path);
 	}
 
 	return cur;
@@ -130,8 +142,8 @@ inode *inode_get_child(inode *current, char *child_name) {
 	}
 	
 	while(dnode->d_inode_num != 0) {
-		if (memcmp(dnode->name, child_name, 
-					sizeof(char) *strlen(child_name))) {
+		if ( strlen(child_name) == strlen(dnode->name) &&
+            memcmp(dnode->name, child_name, sizeof(char)*strlen(child_name))) {
 			inode *child = get_inode(dnode->d_inode_num);
 			free(dbuffer);
 			return child;

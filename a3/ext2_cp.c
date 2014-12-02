@@ -65,12 +65,27 @@ int main(int argc, char ** argv) {
 
 	init_ext2lib(img);
 
+    // check if the path already exists. If it does, exit with error
+    printf("checking if file already exists\n");
+    if (*argv[3] != '/' || get_inode_for(argv[3])) {
+        fprintf(stderr, "file with path \"%.*s\" already exists.\n",
+                    (int)strlen(argv[3]),
+                    argv[3]);
+        fprintf(stderr, "remove it before cping something to that path\n");
+        teardown_ext2lib();
+        exit(1);
+    }
+
 	// find the destination directory and name
 	inode *dest = get_inode_for(argv[3]);
 	char *name = get_last_in_path(argv[2]);
 	
 	if (dest == NULL || inode_type(dest) != INODE_MODE_DIRECTORY) {
-		dest = get_inode_for(pop_last_from_path(argv[3]) );
+		printf(pop_last_from_path(argv[3]));
+        printf("\n");
+        printf(get_last_in_path(argv[3]));
+        printf("\n");
+        dest = get_inode_for(pop_last_from_path(argv[3]) );
 		name = get_last_in_path(argv[3]);
 	}
 
