@@ -78,6 +78,7 @@ int get_inode_by_path(char *path);
 int inode_get_child(inode* current, char *name);
 inode *get_inode(int ino);
 int make_inode(int size);
+int make_directory_inode();
 int make_file_inode(int size_bytes);
 uint allocate_inode();
 bool is_inode_free(int inode);

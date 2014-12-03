@@ -81,7 +81,6 @@ void *aggregate_file(inode *i) {
     int count = 0;
     for (n = 0; n < (12 + (c_block_size / sizeof (uint))); n++) {
         if ((block = inode_nth_block_ptr(i, n))) {
-            fflush(stdout);
             memcpy(buf+(count * c_block_size), block, c_block_size);
             count++;
         } else if (n == 12) {
@@ -147,7 +146,7 @@ int inode_get_child(inode *current, char *child_name) {
 
     if (inode_type(current) != INODE_MODE_DIRECTORY) {
         free(dbuffer);
-        return NULL;
+        return 0;
     }
 
     while (dnode->d_inode_num != 0) {
@@ -295,13 +294,15 @@ int make_inode(int fsize) {
 }
 
 int make_directory_inode() {
-    int ino = make_inode(c_block_size / 512);
+    int ino = make_inode(c_block_size);
     if (ino == 0) return 0;
     inode *i = get_inode(ino);
     i->i_mode = INODE_MODE_DIRECTORY;
 
 
-    // update the directory count in the superblock;
+    // update the directory count in blockgroup
+    blockgroup_root->desc->bg_used_dirs_cont ++;
+
     return ino;
 }
 
@@ -333,8 +334,9 @@ void inode_add_block(inode *i, uint new_block) {
 }
 
 void make_hardlink(char *name, inode *dir, uint file_ino) {
+    
     //aggregate the file, get the pointer to the tail 
-    directory_node *dir_head = aggregate_file(dir);
+    directory_node *dir_head = (directory_node *)aggregate_file(dir);
     directory_node *tail = dir_head;
 
     //print_hex(dir_head, c_block_size);
@@ -374,7 +376,8 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
         size_t size_buffer = sizeof (char)
                 * c_block_size
                 * (dir->i_blocks * (512 / c_block_size));
-        directory_node *new_buffer = malloc(size_buffer + c_block_size * sizeof (char));
+        directory_node *new_buffer = 
+            (directory_node *) malloc(size_buffer + c_block_size * sizeof (char));
 
         // copy over to the appropriate buffer
         memcpy(new_buffer, dir_head, size_buffer);

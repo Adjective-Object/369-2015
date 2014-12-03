@@ -9,37 +9,16 @@
 
 extern size_t c_block_size;
 
-void mk_dir(FILE *input, char *name, inode *dest_dir) {
-    printf("cp %.*s to inode %d\n", (int) strlen(name), name, dest_dir->i_uid);
+void mk_dir(int parent_no, char *child_name) { 
+    int child_no = make_directory_inode(); 
 
-    //get the size of the file
-    fseek(input, 0, SEEK_END);
-    int i, fsize = ftell(input);
-
-    int fsize_blocks = fsize / c_block_size + (fsize % c_block_size != 0);
-    char *buffer = malloc(sizeof (char) *c_block_size);
-
-    // find a new inode and allocate to it the blocks for a new file
-    int new_inode = make_file_inode(fsize);
-
-    // read the file in one block at a time and copy it into the
-    // appropriate data blocks
-    fseek(input, 0, SEEK_SET);
-    for (i = 0; i < fsize_blocks; i++) {
-        fread(buffer, sizeof (char), c_block_size, input);
-
-        void *block = inode_nth_block_ptr(get_inode(new_inode), i);
-        memcpy(block, buffer, c_block_size);
-    }
-
-    printf("file copied, creating hardlink\n");
-    make_hardlink(name, dest_dir, new_inode);
+    make_hardlink(child_name, get_inode(parent_no), child_no);
 }
 
 int main(int argc, char ** argv) {
-    if (argc != 4) {
+    if (argc != 3) {
         fprintf(stderr,
-                "Usage is ext2_cp <image> <file> <path_to_destination>\n");
+                "Usage is ext2_mkdir <image> <path_to_directory>\n");
         return 1;
     }
 
@@ -51,32 +30,26 @@ int main(int argc, char ** argv) {
                 argv[1]);
         return 1;
     }
-
-    FILE *fil = fopen(argv[2], "r");
-    if (!fil) {
-        fprintf(stderr, "Error opening file \"%.*s\" for reading",
-                (int) strlen(argv[2]),
-                argv[2]);
-        return 1;
-    }
+    
+    char *path = pop_base_from_path(argv[1]);
+    char *dirname = get_last_in_path(argv[1]);
 
     printf("img: %.*s \n", (int) strlen(argv[1]), argv[1]);
-    printf("file: %.*s \n", (int) strlen(argv[2]), argv[2]);
+    printf("path: %.*s \n", (int) strlen(path), path);
+    printf("dirname: %.*s\n", (int) strlen(dirname), dirname);
 
     init_ext2lib(img);
 
     // find the destination directory and name
-    inode *dest = get_inode_for(argv[3]);
-    char *name = get_last_in_path(argv[2]);
-
-    if (dest == NULL || inode_type(dest) != INODE_MODE_DIRECTORY) {
-        dest = get_inode_for(pop_last_from_path(argv[3]));
-        name = get_last_in_path(argv[3]);
+    int path_no = get_inode_by_path(path);
+    if (path_no == 0 || 
+            inode_type(get_inode(path_no)) != INODE_MODE_DIRECTORY) {
+        fprintf(stderr, "cannot create directory as child of a file\n");
+        teardown_ext2lib();
+        return 1;
     }
 
-    // insert with proper name into the directory
-    cp_to_dir(fil, name, dest);
-
+    mk_dir(path_no, dirname);
     teardown_ext2lib();
 
     return 0;

@@ -2,7 +2,7 @@ all: debugtools  assignment
 
 ## the assignment
 
-assignment: ext2_cp # ext2_mkdir ext2_ln ext2_rm
+assignment: ext2_cp ext2_mkdir ext2_ln ext2_rm
 
 ext2_rm: ext2_rm.o ext2.o
 	gcc -Wall -g $^ -o ext2_rm
@@ -28,6 +28,9 @@ ext2_inspect: ext2_inspect.o blockgroup.o superblock.o ext2.o
 
 ext2_traverse: ext2_traverse.o blockgroup.o superblock.o ext2.o
 	gcc -Wall -g $^ -o ext2_traverse
+
+ext2_mkdir: ext2_mkdir.o blockgroup.o superblock.o ext2.o
+	gcc -Wall -g $^ -o ext2_mkdir
 
 ## generic rule for building .o files
 
