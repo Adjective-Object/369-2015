@@ -16,11 +16,19 @@ extern uint c_num_block_groups;
 
 void inspect_inode(int ino);
 
+int indentation = 0;
+#define pind() {\
+        int __ind_iter=0;\
+        for(__ind_iter=0; __ind_iter<indentation; __ind_iter++){\
+                printf("\t");\
+        }}
+
 void inspect_directory(inode *i) {
     directory_node *d = aggregate_file(i);
     directory_node *first_d = d;
 
     while (d->d_inode_num != 0) {
+        pind();
         printf("%d:\t", d->d_inode_num);
         printf("%.*s", (int) strlen(d->name), d->name);
         d = next_node(d);
@@ -34,11 +42,21 @@ void inspect_directory(inode *i) {
             inode *sub_inode = get_inode(d->d_inode_num);
             ushort ftype = ((sub_inode->i_mode) & 0xF000);
             if (ftype == INODE_MODE_DIRECTORY) {
-                printf("going into subdirectory %.*s\n", d->name_len, d->name);
+                pind();
+                printf("going into subdirectory %.*s {\n", d->name_len, d->name);
+                indentation ++;
                 inspect_inode(d->d_inode_num);
+                indentation --;
+                pind();
+                printf("}\n");
             } else if (ftype == INODE_MODE_FILE) {
-                printf("inspecting file %.*s\n", d->name_len, d->name);
+                pind();
+                printf("inspecting file %.*s {\n", d->name_len, d->name);
+                indentation ++;
                 inspect_inode(d->d_inode_num);
+                indentation --;
+                pind();
+                printf("}\n");
             }
 
         }
@@ -49,6 +67,7 @@ void inspect_directory(inode *i) {
 
 void inspect_inode(int ino) {
     //load inode into memory
+    pind();
     printf("number=%d, inode_size=%d\n",
             ino, superblock_root -> s_inode_size);
 
@@ -70,7 +89,8 @@ void inspect_inode(int ino) {
      */
 
     // print what type it is
-    pfields(cur_inode, i_uid);
+    pind();
+    printf("inode no: %d", ino);
     pfields(cur_inode, i_mode);
     pfield(cur_inode, i_flags);
     printf("\tblocks: ");
@@ -91,36 +111,28 @@ void inspect_inode(int ino) {
             inspect_directory(cur_inode);
             break;
         case INODE_MODE_FILE:
-            printf("\tinode %d is a file\n",
-                    cur_inode->i_uid);
+            pind();
+            printf("\tinode %d is a file\n", ino);
             char *buf = aggregate_file(cur_inode);
+            indentation++;
+            pind();
             printf("%.*s\n", cur_inode->i_blocks * 512, buf);
-
+            indentation--;
             break;
         default:
-            printf("no method to handle file mode type %x, (inode %d = %d)\n",
-                    ftype, cur_inode->i_uid, ino);
+            pind();
+            printf("no method to handle file mode type %x, (inode %d)\n",
+                    ftype, ino);
     }
-
-    printf("done inspecting inode %d\n", ino);
 }
 
-void inspect_bitmap(char *bitmap) {
+void inspect_bitmap(char *bitmap, uint count) {
     int i;
 
     printf("in use: ");
-    for (i = 0; i < c_block_size * 8; i++) {
+    for (i=1; i<=count; i++) {
         if (!is_bitmap_free(i, bitmap)) {
             printf("%d, ", i);
-            /*
-            printf("\n i=%d, n=%d\t, value=%02hx (" 
-                            BYTE2BIN_PAT ", " BYTE2BIN_PAT ", %d)",
-                            i,
-                            (i*8 + x), 
-                            (bitmap[i]),
-                            BYTE2BIN(bitmap[i]),
-                            BYTE2BIN(mask),
-                            mask);*/
         }
     }
     printf("\n");
@@ -142,13 +154,18 @@ void inspect_blockgroup(blockgroup *bg) {
     pfields(d, bg_free_inodes_cont);
     pfields(d, bg_used_dirs_cont);
 
-    printf("\n");
     // check out the inode bitmap
+    
+    printf("\n\n");
+    print_hex(bg->inode_bitmap, superblock_root->s_inodes_count/8);
     printf("inodes ");
-    inspect_bitmap(bg->inode_bitmap);
+    inspect_bitmap(bg->inode_bitmap, superblock_root->s_inodes_count);
+
+    printf("\n\n");
     // and the data bitmap
+    print_hex(bg->inode_bitmap, superblock_root->s_blocks_count/8);
     printf("data blocks ");
-    inspect_bitmap(bg->block_bitmap);
+    inspect_bitmap(bg->block_bitmap, superblock_root->s_blocks_count);
 
     printf("\n");
     // c

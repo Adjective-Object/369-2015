@@ -23,6 +23,8 @@ void cp_to_dir(FILE *input, char *name, int dest_dir) {
     int new_inode = make_file_inode(fsize);
     if(new_inode == 0){
         fprintf(stderr, "could not allocate new inode, no space left\n");
+    } else{
+        printf("new file in inode %d\n", new_inode);
     }
 
     // read the file in one block at a time and copy it into the
@@ -35,7 +37,7 @@ void cp_to_dir(FILE *input, char *name, int dest_dir) {
         memcpy(block, buffer, c_block_size);
     }
 
-    printf("file copied, creating hardlink\n");
+    printf("creatidng hardlink %d->%d\n", dest_dir, new_inode);
     make_hardlink(name, get_inode(dest_dir), new_inode);
 }
 

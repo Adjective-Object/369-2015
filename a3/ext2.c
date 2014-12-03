@@ -125,15 +125,15 @@ void init_ext2lib(FILE *f) {
     blockgroup_root = malloc(sizeof (blockgroup));
 
     load_blockgroup(blockgroup_root, 1024);
-    swap_endian_on_block(blockgroup_root->inode_bitmap, c_block_size);
-    swap_endian_on_block(blockgroup_root->block_bitmap, c_block_size);
+    //swap_endian_on_block(blockgroup_root->inode_bitmap, c_block_size);
+    //swap_endian_on_block(blockgroup_root->block_bitmap, c_block_size);
 
 }
 
 void teardown_ext2lib() {
 
-    swap_endian_on_block(blockgroup_root->inode_bitmap, c_block_size);
-    swap_endian_on_block(blockgroup_root->block_bitmap, c_block_size);
+    //swap_endian_on_block(blockgroup_root->inode_bitmap, c_block_size);
+    //swap_endian_on_block(blockgroup_root->block_bitmap, c_block_size);
 
 }
 

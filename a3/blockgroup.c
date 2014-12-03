@@ -185,14 +185,16 @@ void init_inode_meta(inode *i) {
 // checks if a given directory block is free
 
 bool is_bitmap_free(int i, char *bitmap) {
+    i--;
     unsigned char data = bitmap[i / 8];
-    unsigned char mask = 128 >> ((i % 8));
-    return mask & data;
+    unsigned char mask = 1 << ((i % 8));
+    return !(mask & data);
 }
 
 void set_bitmap_used(int i, char *bitmap, bool val) {
-    unsigned char mask = 128 >> ((i % 8));
-    bitmap[i / 8] = (bitmap[i / 8] & (~mask)) | ((true == val) ? 0 : mask);
+    i--;
+    unsigned char mask = 1 << ((i % 8));
+    bitmap[i / 8] = (bitmap[i / 8] & (~mask)) | ((true == val) ? mask : 0);
 }
 
 void release_inode(uint i){
