@@ -93,6 +93,11 @@ struct directory_node {
 } __attribute__((packed));
 typedef struct directory_node directory_node;
 
+// Dir contents
+#define FILE_TYPE_UNKNOWN   0
+#define FILE_TYPE_FILE      1
+#define FILE_TYPE_DIRECTORY 2
+
 // Directory Helpers
 directory_node *next_node(directory_node *d);
 void make_hardlink(char *name, inode *dir, uint file_ino);

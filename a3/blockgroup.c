@@ -6,6 +6,7 @@
 #include "ext2.h"
 #include <time.h>
 
+
 void *block_addr(int blockaddr) {
     return ext2_map_start + (1024 + c_block_size * (blockaddr - 1));
 }
@@ -45,9 +46,9 @@ void load_blockgroup(blockgroup * bg, int location) {
     bg->desc = (descriptor *) (ext2_map_start + location + c_block_size);
 
     //point to the bitmaps and table within the mapping
-    bg->block_bitmap = block_addr(bg->desc->bg_block_bitmap);
-    bg->inode_bitmap = block_addr(bg->desc->bg_inode_bitmap);
-    bg->inode_table = block_addr(bg->desc->bg_inode_table);
+    bg->block_bitmap = (char *)block_addr(bg->desc->bg_block_bitmap);
+    bg->inode_bitmap = (char *)block_addr(bg->desc->bg_inode_bitmap);
+    bg->inode_table = (inode *)block_addr(bg->desc->bg_inode_table);
 
     // swap the endianess of the bitmaps
     // swap_endian_on_block(bg->block_bitmap, sizeof(char) * c_block_size);
@@ -61,7 +62,7 @@ void *inode_nth_block_ptr(inode *i, uint n) {
     if (n < 12 && i->i_block[n]) {
         return block_addr(i->i_block[n]);
     } else if (i->i_block[12]) {
-        uint *indirect_buf = block_addr(i->i_block[12]);
+        uint *indirect_buf = (uint *) block_addr(i->i_block[12]);
         return block_addr(indirect_buf[n - 12]);
     } else {
         return NULL;
@@ -218,11 +219,12 @@ uint allocate_inode() {
     for (i = 12; i < c_block_size * 8; i++) {
         if (is_bitmap_free(i, ibm)) {
             set_bitmap_used(i, ibm, true);
+            superblock_root->s_free_inodes_count--;
+            blockgroup_root->desc->bg_free_inodes_cont--;
             return i;
         }
     }
 
-    superblock_root->s_free_inodes_count--;
     return 0;
 }
 
@@ -240,12 +242,14 @@ uint allocate_data_block() {
     //
     for (i = 16; i < c_block_size * 8; i++) {
         if (is_bitmap_free(i, dbm)) {
+            //update inode and block counts;
+            superblock_root->s_free_blocks_count--;
+            blockgroup_root->desc->bg_free_blocks_cont--;
             set_bitmap_used(i, dbm, true);
             return i;
         }
     }
 
-    superblock_root->s_free_blocks_count--;
     return 0;
 }
 
@@ -293,15 +297,34 @@ int make_inode(int fsize) {
     return new_ino;
 }
 
+
+
+
+void init_dir_self_reference(int inumber) {
+    inode *i = get_inode(inumber);
+    directory_node *d = (directory_node *) aggregate_file(i);
+    
+    d->filt_type = FILE_TYPE_DIRECTORY;
+    d->name_len = 1;
+    d->name[0] = '.';
+    d->name[1] = '\0';
+    d->d_inode_num = inumber;
+    d->d_rec_len = c_block_size;
+
+    dump_buffer(i, d); 
+}
+
 int make_directory_inode() {
     int ino = make_inode(c_block_size);
     if (ino == 0) return 0;
     inode *i = get_inode(ino);
     i->i_mode = INODE_MODE_DIRECTORY;
 
-
-    // update the directory count in blockgroup
+    // update the directory count
     blockgroup_root->desc->bg_used_dirs_cont ++;
+    
+    init_dir_self_reference(ino);
+    i->i_links_count = 1;
 
     return ino;
 }
@@ -333,6 +356,10 @@ void inode_add_block(inode *i, uint new_block) {
     exit(1);
 }
 
+int border_4(int num){
+    return (num/4 * 4) + ((num%4) ? 4 : 0);
+}
+
 void make_hardlink(char *name, inode *dir, uint file_ino) {
     
     //aggregate the file, get the pointer to the tail 
@@ -358,7 +385,7 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 
     // update the the size of the tail pointer and step
     // forward to the blank space
-    ushort termlen = (ushort) d_node + (char) tail->name_len + 1;
+    ushort termlen = (ushort) border_4(d_node + (char) tail->name_len + 1);
     tail->d_rec_len = termlen;
     tail = (directory_node *) (((char*) tail) + tail->d_rec_len);
 
@@ -399,21 +426,21 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
     switch (inode_type(file_inode)) {
         case INODE_MODE_FILE:
             printf("adding a new file\n");
-            ftype = 1;
+            ftype = FILE_TYPE_FILE;
             break;
         case INODE_MODE_DIRECTORY:
             printf("adding a new directory\n");
-            ftype = 2;
+            ftype = FILE_TYPE_DIRECTORY;
             break;
         default:
             fprintf(stderr, "unknown file type..\n");
-            ftype = 0;
+            ftype = FILE_TYPE_UNKNOWN;
     }
 
     // assign the values for the new directory entry
     printf("assigning directory values\n");
     tail->d_inode_num = file_ino;
-    tail->name_len = (ushort) strlen(name) + 1;
+    tail->name_len = (ushort) strlen(name);
     tail->d_rec_len =
             bsize - ((intptr_t) tail - (intptr_t) dir_head);
     tail->filt_type = ftype;

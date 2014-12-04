@@ -27,16 +27,27 @@ void inspect_directory(inode *i) {
     directory_node *d = aggregate_file(i);
     directory_node *first_d = d;
 
+    int traversed = 0;
     while (d->d_inode_num != 0) {
         pind();
         printf("%d:\t", d->d_inode_num);
-        printf("%.*s", (int) strlen(d->name), d->name);
-        d = next_node(d);
+        printf("%.*s (%d)", (int) strlen(d->name), d->name, traversed);
         printf("\n");
+        
+        pind();
+        pfield(d, d_rec_len);
+        pind();
+        pfields(d, name_len);
+
+        traversed += d->d_rec_len;
+        d = next_node(d);
+
     }
 
+    
     d = first_d;
     while (d->d_inode_num != 0) {
+        
         if (d->name[0] != '.') {
 
             inode *sub_inode = get_inode(d->d_inode_num);

@@ -9,12 +9,10 @@
 
 extern size_t c_block_size;
 
-}
-
 int main(int argc, char ** argv) {
     if (argc != 4) {
         fprintf(stderr,
-                "Usage is ext2_cp <image> <target> <linkname>\n");
+                "Usage is ext2_cp <image> <target_path> <directory_path> \n");
         return 1;
     }
 
@@ -42,14 +40,28 @@ int main(int argc, char ** argv) {
     // find the destination directory and name
     int dir = get_inode_by_path(argv[3]);
     int target = get_inode_by_path(argv[2]);
+    char *target_name = get_last_in_path(argv[2]);
 
-    if ( inode_mode(get_inode(target)) == INODE_MODE_DIRECTORY) {
-        fprintf(stderr, "target inode must not be a directory");
+    if(target == 0){
+        fprintf(stderr, "target does not exist\n");
+        teardown_ext2lib();
+        exit(1);
+    }
+   
+    if(dir == 0){
+        fprintf(stderr, "directory does not exist\n");
+        teardown_ext2lib();
+        exit(1);
+    }
+
+    if ( inode_type(get_inode(target)) == INODE_MODE_DIRECTORY) {
+        fprintf(stderr, "target inode must not be a directory\n");
         teardown_ext2lib();
         return 1;
     }
 
-    make_hardlink(target, get_inode(dir), target);
+
+    make_hardlink(target_name, get_inode(dir), target);
     teardown_ext2lib();
 
     return 0;

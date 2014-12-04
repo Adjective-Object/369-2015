@@ -9,8 +9,11 @@
 
 extern size_t c_block_size;
 
+
+
 void mk_dir(int parent_no, char *child_name) { 
     int child_no = make_directory_inode(); 
+    inode *new_inode = get_inode(child_no);
 
     make_hardlink(child_name, get_inode(parent_no), child_no);
 }
@@ -31,8 +34,8 @@ int main(int argc, char ** argv) {
         return 1;
     }
     
-    char *path = pop_base_from_path(argv[1]);
-    char *dirname = get_last_in_path(argv[1]);
+    char *path = pop_base_from_path(argv[2]);
+    char *dirname = get_last_in_path(argv[2]);
 
     printf("img: %.*s \n", (int) strlen(argv[1]), argv[1]);
     printf("path: %.*s \n", (int) strlen(path), path);
@@ -42,8 +45,15 @@ int main(int argc, char ** argv) {
 
     // find the destination directory and name
     int path_no = get_inode_by_path(path);
-    if (path_no == 0 || 
-            inode_type(get_inode(path_no)) != INODE_MODE_DIRECTORY) {
+    if(path_no == 0){
+        fprintf(stderr, "parent directory \"%.*s\" does not exist\n",
+                    (int) strlen(path),
+                    path);
+        teardown_ext2lib();
+        return 1;
+    }
+    
+    if (inode_type(get_inode(path_no)) != INODE_MODE_DIRECTORY) {
         fprintf(stderr, "cannot create directory as child of a file\n");
         teardown_ext2lib();
         return 1;
