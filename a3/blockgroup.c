@@ -107,13 +107,11 @@ void dump_buffer(inode *i, void *buffer) {
 }
 
 
-// gets the inode for a directory / file indicated by a given path.
-
+// gets the inode for a directory or file indicated by a given path.
 int get_inode_by_path(char *path) {
     int cur = 2;
 
     path = get_next_in_path(path); // skip the leading / for root
-
 
     while (cur != 0 && path != NULL && *path != '\0') {
         
@@ -356,8 +354,13 @@ void inode_add_block(inode *i, uint new_block) {
     exit(1);
 }
 
-int border_4(int num){
-    return (num/4 * 4) + ((num%4) ? 4 : 0);
+int border_4(int num, int name_len){
+    int toret = (num/4 * 4) + ((num%4) ? 4 : 0);
+    if( (toret + name_len + d_node)/c_block_size > toret/c_block_size) {
+        printf("%d would break block, skipping to end of block\n");
+        toret = (toret/c_block_size + 1) * c_block_size;
+    }
+    return toret;
 }
 
 void make_hardlink(char *name, inode *dir, uint file_ino) {
@@ -385,7 +388,9 @@ void make_hardlink(char *name, inode *dir, uint file_ino) {
 
     // update the the size of the tail pointer and step
     // forward to the blank space
-    ushort termlen = (ushort) border_4(d_node + (char) tail->name_len + 1);
+    ushort termlen = (ushort) border_4(
+            d_node + (char) tail->name_len + 1,
+            (int)strlen(name) );
     tail->d_rec_len = termlen;
     tail = (directory_node *) (((char*) tail) + tail->d_rec_len);
 

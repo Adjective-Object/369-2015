@@ -77,23 +77,54 @@ int main(int argc, char ** argv) {
     init_ext2lib(img);
 
     // find the destination directory and name
-    int dest = get_inode_by_path(argv[3]);
+    // start by assuming path is the path to the parent directory
+    // and the file's name it it's name
+    char *dir_path = argv[3];
     char *name = get_last_in_path(argv[2]);
+    printf("attempting file \n\tpath: \"%.*s\" \n\tname: \"%.*s\"\n",
+            (int) strlen(dir_path), dir_path,
+            (int) strlen(name), name);
+   
+    int dest = get_inode_by_path(dir_path);
     
-
-    // move destination
-    if (dest == 0 || inode_type(get_inode(dest)) != INODE_MODE_DIRECTORY) {
-        dest = get_inode_by_path(pop_base_from_path(argv[3]));
-        name = get_last_in_path(argv[3]);
-    } else if (inode_type(get_inode(dest)) != INODE_MODE_DIRECTORY){
-        fprintf(stderr, "file with path \"%.*s\" already exists.\n",
-                (int) strlen(argv[3]),
-                argv[3]);
-        fprintf(stderr, "remove it before cping something to that path\n");
-        teardown_ext2lib();
-        exit(1);
-
+    // if the file was not found or is not a directory, change assumption to
+    // path is the path to the new file on dir
+    if (dest == 0) { 
+        name = get_last_in_path(dir_path);
+        dir_path = pop_base_from_path(dir_path);
+        printf("directory \"%.*s\" not found",
+                (int)strlen(dir_path), dir_path); 
+        printf("attempting file \n\tpath: \"%.*s\" \n\tname: \"%.*s\"\n",
+            (int) strlen(dir_path), dir_path,
+            (int) strlen(name), name);
     }
+
+        
+    dest = get_inode_by_path(dir_path);
+    
+    // exit if the file exists
+    char *fullpath = (char *) malloc(strlen(dir_path) + strlen(name) + 1);
+    strcpy(fullpath, dir_path);
+    strcat(fullpath, "/");
+    strcat(fullpath, name);
+    printf("\"%.*s\"\n", (int)strlen(fullpath), fullpath);
+    if (0 != get_inode_by_path(fullpath) ){
+        fprintf(stderr, 
+                "file \"%.*s\" already exists", 
+                    (int)strlen(fullpath), fullpath);
+        return 1;
+    }
+    
+    // exit if the destination directory is invalid
+    if(inode_type(get_inode(dest)) != INODE_MODE_DIRECTORY) {
+        fprintf(stderr,
+                "destination \"%.*s\" is not a directory\n", 
+                    (int) strlen(dir_path), dir_path);
+        teardown_ext2lib();
+        return 1;
+    }
+
+
 
     // insert with proper name into the directory
     cp_to_dir(fil, name, dest);

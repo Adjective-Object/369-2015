@@ -15,6 +15,7 @@ void mk_dir(int parent_no, char *child_name) {
     int child_no = make_directory_inode(); 
     inode *new_inode = get_inode(child_no);
 
+    make_hardlink("..", new_inode, parent_no);
     make_hardlink(child_name, get_inode(parent_no), child_no);
 }
 
@@ -43,6 +44,14 @@ int main(int argc, char ** argv) {
 
     init_ext2lib(img);
 
+    // check the file does not already exist
+    if( get_inode_by_path(argv[2]) != 0 ){
+        fprintf(stderr, "file \"%.*s\" already exists\n",
+                    (int) strlen(argv[2]),
+                    argv[2]);
+        teardown_ext2lib();
+        return 1;
+    }
     // find the destination directory and name
     int path_no = get_inode_by_path(path);
     if(path_no == 0){
@@ -53,6 +62,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
     
+    //check that the parent of the file is a directory
     if (inode_type(get_inode(path_no)) != INODE_MODE_DIRECTORY) {
         fprintf(stderr, "cannot create directory as child of a file\n");
         teardown_ext2lib();

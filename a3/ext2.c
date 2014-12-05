@@ -177,7 +177,7 @@ char *pop_base_from_path(char *path) {
     
     char *newstr = malloc(sizeof (char) * len + 1);
     memcpy(newstr, path, len);
-    newstr[len + 1] = '\0';
+    newstr[len] = '\0';
     return newstr;
 }
 
