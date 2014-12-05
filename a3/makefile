@@ -1,4 +1,4 @@
-all: debugtools  assignment
+all: assignment # debugtools
 
 ## the assignment
 
